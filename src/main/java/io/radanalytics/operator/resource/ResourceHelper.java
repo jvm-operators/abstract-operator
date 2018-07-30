@@ -20,15 +20,7 @@ public class ResourceHelper {
         return cm.getMetadata().getName();
     }
 
-    public static boolean isCluster(ConfigMap cm) {
-        return isAKind(cm, LabelsHelper.OPERATOR_KIND_CLUSTER_LABEL);
-    }
-
-    public static boolean isApp(ConfigMap cm) {
-        return isAKind(cm, LabelsHelper.OPERATOR_KIND_APP_LABEL);
-    }
-
-    private static boolean isAKind(ConfigMap cm, String kind) {
-        return LabelsHelper.getKind(cm).map(k -> kind.equals(k)).orElse(false);
+    public static boolean isAKind(ConfigMap cm, String kind, String prefix) {
+        return LabelsHelper.getKind(cm, prefix).map(k -> kind.equals(k)).orElse(false);
     }
 }

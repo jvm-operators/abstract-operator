@@ -15,8 +15,6 @@ import java.util.Optional;
  */
 public class LabelsHelper {
 
-    public static final String OPERATOR_DOMAIN = "radanalytics.io/";
-
     /**
      * The kind of a ConfigMap:
      * <ul>
@@ -31,44 +29,21 @@ public class LabelsHelper {
      *         by the notebook operator.</li>
      * </ul>
      */
-    public static final String OPERATOR_KIND_LABEL = OPERATOR_DOMAIN + "kind";
+    public static final String OPERATOR_KIND_LABEL = "kind";
 
-    // the values
-    public static final String OPERATOR_KIND_CLUSTER_LABEL = "cluster";
-    public static final String OPERATOR_KIND_NOTEBOOK_LABEL = "notebook";
-    public static final String OPERATOR_KIND_APP_LABEL = "app";
+    public static final String OPERATOR_SEVICE_TYPE_LABEL = "service";
+    public static final String OPERATOR_RC_TYPE_LABEL = "rcType";
+    public static final String OPERATOR_POD_TYPE_LABEL = "podType";
+    public static final String OPERATOR_DEPLOYMENT_LABEL = "deployment";
 
-    public static final String OPERATOR_SEVICE_TYPE_LABEL = OPERATOR_DOMAIN + "service";
-    //the values
-    public static final String OPERATOR_TYPE_UI_LABEL = "ui";
-
-    public static final String OPERATOR_RC_TYPE_LABEL = OPERATOR_DOMAIN + "rcType";
-    public static final String OPERATOR_POD_TYPE_LABEL = OPERATOR_DOMAIN + "podType";
-    public static final String OPERATOR_DEPLOYMENT_LABEL = OPERATOR_DOMAIN + "deployment";
-    //the values
-    public static final String OPERATOR_TYPE_MASTER_LABEL = "master";
-    public static final String OPERATOR_TYPE_WORKER_LABEL = "worker";
-
-    public static final Optional<String> getKind(HasMetadata resource) {
+    public static final Optional<String> getKind(HasMetadata resource, String prefix) {
         return Optional.ofNullable(resource)
                 .map(r -> r.getMetadata())
                 .map(m -> m.getLabels())
-                .map(l -> l.get(OPERATOR_KIND_LABEL));
+                .map(l -> l.get(prefix + OPERATOR_KIND_LABEL));
     }
 
-    public static Map<String, String> forCluster() {
-        return forKind(OPERATOR_KIND_CLUSTER_LABEL);
-    }
-
-    public static Map<String, String> forApp() {
-        return forKind(OPERATOR_KIND_APP_LABEL);
-    }
-
-    public static Map<String, String> forNotebook() {
-        return forKind(OPERATOR_KIND_NOTEBOOK_LABEL);
-    }
-
-    private static Map<String, String> forKind(String kind) {
-        return Collections.singletonMap(OPERATOR_KIND_LABEL, kind);
+    public static Map<String, String> forKind(String kind, String prefix) {
+        return Collections.singletonMap(prefix + OPERATOR_KIND_LABEL, kind);
     }
 }

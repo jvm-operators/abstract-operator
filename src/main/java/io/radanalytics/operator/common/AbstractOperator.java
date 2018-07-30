@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.Watchable;
 import io.radanalytics.operator.Entrypoint;
+import io.radanalytics.operator.resource.LabelsHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,25 +26,27 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     private static final Logger log = LoggerFactory.getLogger(AbstractOperator.class.getName());
 
     protected final KubernetesClient client;
-    private final Map<String, String> selector;
-    private final String entityName;
-    private final String operatorName;
+    protected final String prefix;
     protected final String namespace;
+    protected final String entityName;
+
+    private final Map<String, String> selector;
+    private final String operatorName;
     private final boolean isOpenshift;
 
     private volatile Watch configMapWatch;
 
     public AbstractOperator(String namespace,
                             boolean isOpenshift,
-                            KubernetesClient client,
-                            String entityName,
-                            Map<String, String> selector) {
+                            KubernetesClient client) {
         this.namespace = namespace;
         this.isOpenshift = isOpenshift;
         this.client = client;
-        this.entityName = entityName;
-        this.selector = selector;
-        this.operatorName = entityName + " Operator";
+        this.entityName = getClass().getAnnotation(Operator.class).forKind();
+        String wannabePrefix = getClass().getAnnotation(Operator.class).prefix();
+        this.prefix = wannabePrefix + (!wannabePrefix.endsWith("/") ? "/" : "");
+        this.selector = LabelsHelper.forKind(entityName, prefix);
+        this.operatorName = "'" + entityName + "' operator";
     }
 
     abstract protected void onAdd(T entity, boolean isOpenshift);
