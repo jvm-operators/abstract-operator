@@ -5,7 +5,6 @@
 package io.radanalytics.operator.resource;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.radanalytics.operator.cluster.ClusterInfo;
 import io.radanalytics.operator.common.EntityInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -4,13 +4,14 @@ import com.jcabi.manifests.Manifests;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.Watch;
-import io.radanalytics.operator.app.AppOperator;
-import io.radanalytics.operator.cluster.ClusterOperator;
+import io.radanalytics.operator.common.AbstractOperator;
+import io.radanalytics.operator.common.Operator;
 import io.radanalytics.operator.common.OperatorConfig;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,17 +19,19 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.Stream;
 
 import static io.radanalytics.operator.common.AnsiColors.*;
 
@@ -75,21 +78,37 @@ public class Entrypoint {
     }
 
     private static CompletableFuture<Void> runForNamespace(KubernetesClient client, boolean isOpenShift, String namespace) {
-
-        ClusterOperator clusterOperator = new ClusterOperator(namespace, isOpenShift, client);
-        AppOperator appOperator = new AppOperator(namespace, isOpenShift, client);
+        Reflections reflections = new Reflections("io");
+//        Set<Class<? extends AbstractOperator>> operatorClasses = reflections.getSubTypesOf(AbstractOperator.class);
+        Set<Class<?>> operatorClasses = reflections.getTypesAnnotatedWith(Operator.class);
 
         List<Future> futures = new ArrayList<>();
-        Stream.of(clusterOperator, appOperator).forEach(operator -> {
-            CompletableFuture<Watch> future = operator.start().thenApply(res -> {
-                log.info("{} started in namespace {}", operator.getName(), namespace);
-                return res;
-            }).exceptionally(e -> {
-                log.error("{} in namespace {} failed to start", operator.getName(), namespace, e.getCause());
-                System.exit(1);
-                return null;
-            });
-            futures.add(future);
+        operatorClasses.stream().forEach(operatorClass -> {
+            try {
+                if (!AbstractOperator.class.isAssignableFrom(operatorClass)) {
+                    log.error("Class {} annotated with @Operator doesn't extend the AbstractOperator", operatorClass);
+                    System.exit(1);
+                }
+                Operator annotation = operatorClass.getAnnotation(Operator.class);
+                if (!annotation.enabled()) {
+                    log.info("Skipping initialization of {} operator", operatorClass);
+                    return;
+                }
+
+                Constructor<? extends AbstractOperator> constructor = ((Class<? extends AbstractOperator>)operatorClass).getConstructor(String.class, boolean.class, KubernetesClient.class);
+                final AbstractOperator operator = constructor.newInstance(namespace, isOpenShift, client);
+                CompletableFuture<Watch> future = operator.start().thenApply(res -> {
+                    log.info("{} started in namespace {}", operator.getName(), namespace);
+                    return res;
+                }).exceptionally(ex -> {
+                    log.error("{} in namespace {} failed to start", operator.getName(), namespace, ((Throwable)ex).getCause());
+                    System.exit(1);
+                    return null;
+                });
+                futures.add(future);
+            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
+                e.printStackTrace();
+            }
         });
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[]{}));
     }
