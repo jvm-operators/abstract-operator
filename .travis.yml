@@ -1,42 +1,4 @@
 language: java
 
-services:
-  - docker
-
-# skip install step
-install: true
-
-stages:
-  - test
-  - test-oc-and-k8s
-  - deploy
-
-jobs:
-  include:
-    - stage: test
-      language: java
-      script: make build test
-
-    - stage: test-oc-and-k8s
-      env: BIN=oc VERSION=v3.9.0
-      script: &oc-script-defaults
-        - make build
-        - ./.travis/.travis.prepare.openshift.sh
-        - ./.travis/.travis.test-oc-and-k8s.sh
-
-    #- stage:
-    #  env: BIN=oc VERSION=v3.10.0
-    #  script: *oc-script-defaults
-
-    - stage:
-      env: BIN=kubectl VERSION=v1.9.0 MINIKUBE_VERSION=v0.25.2
-      script:
-        - make build
-        - ./.travis/.travis.prepare.minikube.sh
-        - ./.travis/.travis.test-oc-and-k8s.sh
-
-    - stage: deploy
-      script:
-        # release x.y.z or x.y.z-centos if there is a release
-        # or release the latest image if building the master branch
-        - ./.travis/.travis.release.images.sh
+script:
+  - ./mvnw test -B

@@ -1,9 +1,0 @@
-FROM fabric8/java-centos-openjdk8-jdk:1.4.0
-
-ENV JAVA_OPTS="-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
-
-LABEL BASE_IMAGE="fabric8/java-centos-openjdk8-jdk:1.4.0"
-
-ADD target/spark-operator-*.jar /spark-operator.jar
-
-CMD ["/usr/bin/java", "-Dvertx.cacheDirBase=/tmp", "-jar", "/spark-operator.jar"]
