@@ -2,16 +2,20 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                       http://maven.apache.org/xsd/maven-4.0.0.xsd">
-
+    <parent>
+        <groupId>io.radanalytics</groupId>
+        <artifactId>operator-parent-pom</artifactId>
+        <version>0.1.5-SNAPSHOT</version>
+    </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.radanalytics</groupId>
     <artifactId>abstract-operator</artifactId>
     <version>0.1.5-SNAPSHOT</version>
 
     <scm>
-        <url>https://github.com/Jiri-Kremser/spark-operator</url>
-        <connection>scm:git:git@github.com:Jiri-Kremser/spark-operator.git</connection>
-        <developerConnection>scm:git:git@github.com:Jiri-Kremser/spark-operator.git</developerConnection>
+        <url>https://github.com/jvm-operators/abstract-operator</url>
+        <connection>scm:git:git@github.com:jvm-operators/abstract-operator.git</connection>
+        <developerConnection>scm:it:git@github.com:jvm-operators/abstract-operator.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
 
@@ -23,7 +27,6 @@
         <maven.assembly.version>3.1.0</maven.assembly.version>
         <maven.buildnumber.version>1.4</maven.buildnumber.version>
         <maven.failsafe.version>2.20.1</maven.failsafe.version>
-        <maven.jarplugin.version>3.1.0</maven.jarplugin.version>
         <maven.shade.version>3.1.1</maven.shade.version>
         <maven.surefire.version>2.20.1</maven.surefire.version>
 
@@ -83,22 +86,6 @@
     </dependencies>
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>${maven.jarplugin.version}</version>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                            <addDefaultSpecificationEntries>false</addDefaultSpecificationEntries>
-                        </manifest>
-                        <manifestEntries>
-                            <Implementation-Build>${buildNumber}</Implementation-Build>
-                        </manifestEntries>
-                    </archive>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>buildnumber-maven-plugin</artifactId>
