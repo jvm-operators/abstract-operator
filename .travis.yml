@@ -1,4 +1,4 @@
 language: java
 
 script:
-  - ./mvnw test -B
+  - make build-travis
