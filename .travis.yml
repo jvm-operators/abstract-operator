@@ -8,4 +8,6 @@ script:
 
 deploy:
   provider: script
-  script: ./mvnw -s ./.travis/settings.xml clean deploy
+  script: 
+  - make build-travis
+  - ./mvnw -s ./.travis/settings.xml clean deploy
