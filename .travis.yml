@@ -1,4 +1,7 @@
 language: java
 
+# skip the implicit install step
+install: true
+
 script:
   - make build-travis
