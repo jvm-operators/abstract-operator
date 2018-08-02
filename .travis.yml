@@ -5,3 +5,7 @@ install: true
 
 script:
   - make build-travis
+
+deploy:
+  provider: script
+  script: ./mvnw -s ./.travis/settings.xml clean deploy
