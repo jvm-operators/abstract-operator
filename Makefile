@@ -9,6 +9,10 @@ install-parent:
 .PHONY: build-travis
 build-travis: install-parent build
 
+.PHONY: javadoc
+javadoc:
+	./mvnw javadoc:javadoc
+
 .PHONY: update-parent
 update-parent:
-	mvn versions:update-parent
+	./mvnw versions:update-parent

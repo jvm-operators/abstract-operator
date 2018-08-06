@@ -14,7 +14,10 @@ import java.util.Optional;
 public class ResourceHelper {
 
     /**
-     * Returns the value of the {@code metadata.name} of the given {@code resource}.
+     * Returns the value of the {@code metadata.name} of the given {@code cm}.
+     *
+     * @param cm config map object
+     * @return the name
      */
     public static String name(ConfigMap cm) {
         return cm.getMetadata().getName();

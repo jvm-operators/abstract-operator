@@ -17,7 +17,7 @@ import org.yaml.snakeyaml.error.YAMLException;
  * Type parameter T represents the concrete EntityInfo that captures the configuration obout the
  * objects in the clusters we are interested in, be it spark clusters, http servers, certificates, etc.
  *
- * One can create arbitrarily deep configurations by nesting the types in <code>Class&lt;T&gt;</> and using
+ * One can create arbitrarily deep configurations by nesting the types in <code>Class&lt;T&gt;</code> and using
  * the Snake yaml or other library as for conversions between YAML and Java objects.
  */
 public class HasDataHelper {
@@ -59,7 +59,7 @@ public class HasDataHelper {
      *               keys in the yaml should be the same as the field names in the class T and the name of the
      *               configmap will be assigned to the name of the object T. One can create arbitrarily deep
      *               configuration by nesting the types in T and using the Snake yaml as the conversion library.
-     * @param <T>
+     * @param <T>    type parameter (T must extend {@link io.radanalytics.operator.common.EntityInfo})
      * @return       Java object of type T
      */
     public static <T extends EntityInfo> T parseCM(Class<T> clazz, ConfigMap cm) {
