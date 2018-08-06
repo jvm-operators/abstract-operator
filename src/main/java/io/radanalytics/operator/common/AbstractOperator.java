@@ -21,6 +21,15 @@ import java.util.concurrent.CompletableFuture;
 import static io.radanalytics.operator.common.AnsiColors.ANSI_G;
 import static io.radanalytics.operator.common.AnsiColors.ANSI_RESET;
 
+/**
+ * This abstract class represents the extension point of the abstract-operator library.
+ * By extending this class and overriding the methods, you will be able to watch on the
+ * configmaps you are interested in and handle the life-cycle of your objects accordingly.
+ *
+ * Don't forget to add the @Operator annotation of the children classes.
+ *
+ * @param <T> entity info class that captures the configuration of the objects we are watching
+ */
 public abstract class AbstractOperator<T extends EntityInfo> {
 
     private static final Logger log = LoggerFactory.getLogger(AbstractOperator.class.getName());
@@ -49,14 +58,61 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         this.operatorName = "'" + entityName + "' operator";
     }
 
+    /**
+     * In this method, the user of the abstract-operator is assumed to handle the creation of
+     * a new entity of type T. This method is called when the config map with given type is created.
+     * The common use-case would be creating some new resources in the
+     * Kubernetes cluster (using @see this.client), like replication controllers with pod specifications
+     * and custom images and settings. But one can do arbitrary work here, like calling external APIs, etc.
+     *
+     * @param entity      entity that represents the config map that has just been created.
+     *                    The type of the entity is passed as a type parameter to this class.
+     * @param isOpenshift if true the operator is running on OpenShift
+     */
     abstract protected void onAdd(T entity, boolean isOpenshift);
 
+    /**
+     * This method should handle the deletion of the resource that was represented by the config map.
+     * The method is called when the corresponding config map is deleted in the Kubernetes cluster.
+     * Some suggestion what to do here would be: cleaning the resources, deleting some resources in K8s, etc.
+     *
+     * @param entity      entity that represents the config map that has just been created.
+     *                    The type of the entity is passed as a type parameter to this class.
+     * @param isOpenshift if true the operator is running on OpenShift
+     */
     abstract protected void onDelete(T entity, boolean isOpenshift);
 
+    /**
+     * It's called when one modifies the configmap of type 'T' (that passes <code>isSupported</code> check)
+     *
+     * @param entity      entity that represents the config map that has just been created.
+     *                    The type of the entity is passed as a type parameter to this class.
+     * @param isOpenshift if true the operator is running on OpenShift
+     */
     abstract protected void onModify(T entity, boolean isOpenshift);
 
+    /**
+     * This method provides aditional checking for configmaps. The watchers should be configured to watch on
+     * those configmaps that has certain labels on them. Normally, you would like to call something like:
+     *
+     * <code>ResourceHelper.isAKind(cm, "fooBar", example.com);</code> in this method, where "fooBar" will be the
+     * kind of the configmap and 'example.com' would be the namespace prefix.
+     *
+     * @param cm          ConfigMap that is about to be checked
+     * @return true if cm is the configmap we are interested in
+     */
     abstract protected boolean isSupported(ConfigMap cm);
 
+    /**
+     * Converts the configmap representation into T.
+     * Normally, you may want to call something like:
+     *
+     * <code>HasDataHelper.parseCM(FooBar.class, cm);</code> in this method, where FooBar is of type T.
+     * This would parse the yaml representation of the configmap's config section and creates an object of type T.
+     *
+     * @param cm          ConfigMap that is about to be converted to T
+     * @return entity of type T
+     */
     abstract protected T convert(ConfigMap cm);
 
     public String getName() {
