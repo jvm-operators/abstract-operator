@@ -73,6 +73,8 @@ main() {
   echo "Desired new version: $DESIRED_NEW"
 
   gitFu $VERSION $DESIRED_NEW
+
+  echo -e "if everything is ok, you may want to continue with: \n\n git push personal master $VERSION\n\n"
 }
 
 main $@
