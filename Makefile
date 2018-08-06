@@ -8,3 +8,7 @@ install-parent:
 
 .PHONY: build-travis
 build-travis: install-parent build
+
+.PHONY: update-parent
+update-parent:
+	mvn versions:update-parent
