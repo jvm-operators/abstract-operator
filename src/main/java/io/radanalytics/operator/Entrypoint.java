@@ -35,6 +35,11 @@ import java.util.concurrent.Future;
 
 import static io.radanalytics.operator.common.AnsiColors.*;
 
+/**
+ * Entry point class that contains the main method and should bootstrap all the registered operators
+ * that are present on the class path. It scans the class path for those classes that have the @Operator
+ * annotations on them. Also the package name must start with io.
+ */
 public class Entrypoint {
 
     private static final Logger log = LoggerFactory.getLogger(Entrypoint.class.getName());
@@ -158,7 +163,7 @@ public class Entrypoint {
         } catch (Exception e) {
             // ignore, not critical
         }
-        log.info("\n{}Spark-operator{} has started in version {}{}{}. {}\n", ANSI_R, ANSI_RESET, ANSI_G,
+        log.info("\n{}Operator{} has started in version {}{}{}. {}\n", ANSI_R, ANSI_RESET, ANSI_G,
                 version, ANSI_RESET, FOO);
         if (!gitSha.isEmpty()) {
             log.info("Git sha: {}{}{}", ANSI_Y, gitSha, ANSI_RESET);
