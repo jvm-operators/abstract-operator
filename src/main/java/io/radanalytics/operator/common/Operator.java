@@ -11,4 +11,5 @@ public @interface Operator {
     boolean enabled() default true;
     String forKind();
     String prefix();
+    Class<? extends EntityInfo> infoClass();
 }
