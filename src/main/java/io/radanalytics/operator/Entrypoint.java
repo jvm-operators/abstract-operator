@@ -100,8 +100,10 @@ public class Entrypoint {
                     return;
                 }
 
-                Constructor<? extends AbstractOperator> constructor = ((Class<? extends AbstractOperator>)operatorClass).getConstructor(String.class, boolean.class, KubernetesClient.class);
-                final AbstractOperator operator = constructor.newInstance(namespace, isOpenShift, client);
+                final AbstractOperator operator = ((Class<? extends AbstractOperator>)operatorClass).newInstance();
+                operator.setClient(client);
+                operator.setNamespace(namespace);
+                operator.setOpenshift(isOpenShift);
                 CompletableFuture<Watch> future = operator.start().thenApply(res -> {
                     log.info("{} started in namespace {}", operator.getName(), namespace);
                     return res;
@@ -111,7 +113,7 @@ public class Entrypoint {
                     return null;
                 });
                 futures.add(future);
-            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
+            } catch (InstantiationException | IllegalAccessException e) {
                 e.printStackTrace();
             }
         });

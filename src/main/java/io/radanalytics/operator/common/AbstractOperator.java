@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.Watchable;
 import io.radanalytics.operator.Entrypoint;
+import io.radanalytics.operator.resource.HasDataHelper;
 import io.radanalytics.operator.resource.LabelsHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,26 +33,23 @@ import static io.radanalytics.operator.common.AnsiColors.ANSI_RESET;
  */
 public abstract class AbstractOperator<T extends EntityInfo> {
 
-    private static final Logger log = LoggerFactory.getLogger(AbstractOperator.class.getName());
+    protected static final Logger log = LoggerFactory.getLogger(AbstractOperator.class.getName());
 
-    protected final KubernetesClient client;
-    protected final String prefix;
-    protected final String namespace;
+    protected KubernetesClient client;
+    protected boolean isOpenshift;
+    protected String namespace;
     protected final String entityName;
+    protected final String prefix;
 
     private final Map<String, String> selector;
     private final String operatorName;
-    private final boolean isOpenshift;
+    private final Class<T> infoClass;
 
     private volatile Watch configMapWatch;
 
-    public AbstractOperator(String namespace,
-                            boolean isOpenshift,
-                            KubernetesClient client) {
-        this.namespace = namespace;
-        this.isOpenshift = isOpenshift;
-        this.client = client;
+    public AbstractOperator() {
         this.entityName = getClass().getAnnotation(Operator.class).forKind();
+        this.infoClass = (Class<T>) getClass().getAnnotation(Operator.class).infoClass();
         String wannabePrefix = getClass().getAnnotation(Operator.class).prefix();
         this.prefix = wannabePrefix + (!wannabePrefix.endsWith("/") ? "/" : "");
         this.selector = LabelsHelper.forKind(entityName, prefix);
@@ -84,24 +82,27 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
     /**
      * It's called when one modifies the configmap of type 'T' (that passes <code>isSupported</code> check)
+     * If this method is not overriden, the implicit behavior is calling <code>onDelete</code> and <code>onAdd</code>.
      *
      * @param entity      entity that represents the config map that has just been created.
      *                    The type of the entity is passed as a type parameter to this class.
      * @param isOpenshift if true the operator is running on OpenShift
      */
-    abstract protected void onModify(T entity, boolean isOpenshift);
+    protected void onModify(T entity, boolean isOpenshift) {
+        onDelete(entity, isOpenshift);
+        onAdd(entity, isOpenshift);
+    }
 
     /**
-     * This method provides aditional checking for configmaps. The watchers should be configured to watch on
-     * those configmaps that has certain labels on them. Normally, you would like to call something like:
-     *
-     * <code>ResourceHelper.isAKind(cm, "fooBar", example.com);</code> in this method, where "fooBar" will be the
-     * kind of the configmap and 'example.com' would be the namespace prefix.
+     * Implicitly only those configmaps with given prefix and kind are being watched, but you can provide additional
+     * 'deep' checking in here.
      *
      * @param cm          ConfigMap that is about to be checked
      * @return true if cm is the configmap we are interested in
      */
-    abstract protected boolean isSupported(ConfigMap cm);
+    protected boolean isSupported(ConfigMap cm) {
+        return true;
+    }
 
     /**
      * Converts the configmap representation into T.
@@ -113,7 +114,9 @@ public abstract class AbstractOperator<T extends EntityInfo> {
      * @param cm          ConfigMap that is about to be converted to T
      * @return entity of type T
      */
-    abstract protected T convert(ConfigMap cm);
+    protected T convert(ConfigMap cm) {
+        return HasDataHelper.parseCM(infoClass, cm);
+    }
 
     public String getName() {
         return operatorName;
@@ -215,4 +218,15 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         });
     }
 
+    public void setClient(KubernetesClient client) {
+        this.client = client;
+    }
+
+    public void setOpenshift(boolean openshift) {
+        isOpenshift = openshift;
+    }
+
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
+    }
 }
