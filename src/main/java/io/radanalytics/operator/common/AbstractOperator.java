@@ -65,9 +65,8 @@ public abstract class AbstractOperator<T extends EntityInfo> {
      *
      * @param entity      entity that represents the config map that has just been created.
      *                    The type of the entity is passed as a type parameter to this class.
-     * @param isOpenshift if true the operator is running on OpenShift
      */
-    abstract protected void onAdd(T entity, boolean isOpenshift);
+    abstract protected void onAdd(T entity);
 
     /**
      * This method should handle the deletion of the resource that was represented by the config map.
@@ -76,9 +75,8 @@ public abstract class AbstractOperator<T extends EntityInfo> {
      *
      * @param entity      entity that represents the config map that has just been created.
      *                    The type of the entity is passed as a type parameter to this class.
-     * @param isOpenshift if true the operator is running on OpenShift
      */
-    abstract protected void onDelete(T entity, boolean isOpenshift);
+    abstract protected void onDelete(T entity);
 
     /**
      * It's called when one modifies the configmap of type 'T' (that passes <code>isSupported</code> check)
@@ -86,11 +84,10 @@ public abstract class AbstractOperator<T extends EntityInfo> {
      *
      * @param entity      entity that represents the config map that has just been created.
      *                    The type of the entity is passed as a type parameter to this class.
-     * @param isOpenshift if true the operator is running on OpenShift
      */
-    protected void onModify(T entity, boolean isOpenshift) {
-        onDelete(entity, isOpenshift);
-        onAdd(entity, isOpenshift);
+    protected void onModify(T entity) {
+        onDelete(entity);
+        onAdd(entity);
     }
 
     /**
@@ -160,17 +157,17 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                         switch (action) {
                             case ADDED:
                                 log.info("{}creating{} {}:  \n{}\n", ANSI_G, ANSI_RESET, entityName, name);
-                                onAdd(entity, isOpenshift);
+                                onAdd(entity);
                                 log.info("{} {} has been {}created{}", entityName, name, ANSI_G, ANSI_RESET);
                                 break;
                             case DELETED:
                                 log.info("{}deleting{} {}:  \n{}\n", ANSI_G, ANSI_RESET, entityName, name);
-                                onDelete(entity, isOpenshift);
+                                onDelete(entity);
                                 log.info("{} {} has been {}deleted{}", entityName, name, ANSI_G, ANSI_RESET);
                                 break;
                             case MODIFIED:
                                 log.info("{}modifying{} {}:  \n{}\n", ANSI_G, ANSI_RESET, entityName, name);
-                                onModify(entity, isOpenshift);
+                                onModify(entity);
                                 log.info("{} {} has been {}modified{}", entityName, name, ANSI_G, ANSI_RESET);
                                 break;
                             case ERROR:
