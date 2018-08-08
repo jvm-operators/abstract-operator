@@ -25,28 +25,29 @@ public class HasDataHelper {
 
     public static <T extends EntityInfo> T parseYaml(Class<T> clazz, String yamlDoc, String name) {
         Yaml snake = new Yaml(new Constructor(clazz));
-        T cluster = null;
+        T entity = null;
         try {
-            cluster = snake.load(yamlDoc);
+            entity = snake.load(yamlDoc);
         } catch (YAMLException ex) {
             String msg = "Unable to parse yaml definition of configmap, check if you don't have typo: \n'\n" +
                     yamlDoc + "\n'\n";
             log.error(msg);
+            ex.printStackTrace();
         }
-        if (cluster == null) {
+        if (entity == null) {
             String msg = "Unable to parse yaml definition of configmap, check if you don't have typo: \n'\n" +
                     yamlDoc + "\n'\n";
             log.error(msg);
             try {
-                cluster = clazz.newInstance();
+                entity = clazz.newInstance();
             } catch (InstantiationException e) {
                 e.printStackTrace();
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
         }
-        cluster.setName(name);
-        return cluster;
+        entity.setName(name);
+        return entity;
     }
 
     /**
@@ -64,7 +65,7 @@ public class HasDataHelper {
      */
     public static <T extends EntityInfo> T parseCM(Class<T> clazz, ConfigMap cm) {
         String yaml = cm.getData().get("config");
-        T cluster = parseYaml(clazz, yaml, cm.getMetadata().getName());
-        return cluster;
+        T entity = parseYaml(clazz, yaml, cm.getMetadata().getName());
+        return entity;
     }
 }
