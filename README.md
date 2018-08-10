@@ -6,7 +6,7 @@
 `ConfigMap`-based approach for lyfecycle management of various resources in Kubernetes and OpenShift.
 
 ## Example Implementations
-* [spark-operator](https://github.com/jvm-operators/spark-operator) - Java operator for managing Apache Spark clusters and apps
+* [spark-operator](https://github.com/radanalyticsio/spark-operator) - Java operator for managing Apache Spark clusters and apps
 * [scala-example-operator](https://github.com/jvm-operators/scala-example-operator) - Minimalistic operator in Scala
 
 ## Code
