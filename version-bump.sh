@@ -20,13 +20,13 @@ printUsage() {
 }
 
 gitFu() {
-  [[ $# -lt 2 ]] && "usage: gitFu x.y.z x.y.z" && exit 1
+  [[ $# -lt 2 ]] && "usage: gitFu x.y.z x'.y'.z' <micro|minor|major>" && exit 1
   old=$1
   new=$2
   mvn versions:set -DnewVersion=$new
   git add pom.xml
   set -x
-  git commit -m "version bump from $old to $new"
+  git commit -m "$3 version bump from $old to $new"
   set +x
 }
 
@@ -49,13 +49,8 @@ main() {
   echo "minor: $min"
   echo "micro: $mic"
 
-  gitFu $CURRENT $VERSION
-  git tag -d $VERSION
-  git tag $VERSION
-
   if [[ "$PARAM" = "micro" ]]; then
     echo "Updating micro version"
-    ((mic++))
   elif [[ "$PARAM" = "minor" ]]; then
     echo "Updating minor version"
     ((min++))
@@ -69,12 +64,19 @@ main() {
     echo "Unrecognized param: $PARAM"
     printUsage && exit 1
   fi
+
+  DESIRED="$maj.$min.$mic"
+  gitFu "$CURRENT" "$DESIRED" "$PARAM"
+  git tag -d "$DESIRED" || true
+  git tag "$DESIRED"
+
+  ((mic++))
   DESIRED_NEW="$maj.$min.$mic-SNAPSHOT"
+
   echo "Desired new version: $DESIRED_NEW"
+  gitFu "$DESIRED" "$DESIRED_NEW" "$PARAM"
 
-  gitFu $VERSION $DESIRED_NEW
-
-  echo -e "if everything is ok, you may want to continue with: \n\n git push personal master $VERSION\n\n"
+  echo -e "if everything is ok, you may want to continue with: \n\n git push personal master $DESIRED\n\n"
 }
 
 main $@
