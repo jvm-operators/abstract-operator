@@ -15,4 +15,4 @@ javadoc:
 
 .PHONY: update-parent
 update-parent:
-	./mvnw versions:update-parent
+	./mvnw -U versions:update-parent
