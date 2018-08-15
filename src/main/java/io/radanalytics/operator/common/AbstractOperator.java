@@ -91,6 +91,13 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     }
 
     /**
+     * Override this method to do arbitrary work before the operator starts listening on configmaps.
+     */
+    protected void onInit() {
+        // no-op by default
+    }
+
+    /**
      * Implicitly only those configmaps with given prefix and kind are being watched, but you can provide additional
      * 'deep' checking in here.
      *
@@ -121,6 +128,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
     public CompletableFuture<Watch> start() {
         log.info("Starting {} for namespace {}", operatorName, namespace);
+        onInit();
 
         CompletableFuture<Watch> future = createConfigMapWatch();
         future.thenApply(res -> {
