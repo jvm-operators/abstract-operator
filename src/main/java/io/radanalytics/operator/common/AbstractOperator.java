@@ -1,12 +1,11 @@
 package io.radanalytics.operator.common;
 
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapList;
-import io.fabric8.kubernetes.api.model.DoneableConfigMap;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.fabric8.kubernetes.client.Watch;
-import io.fabric8.kubernetes.client.Watcher;
+import io.fabric8.kubernetes.api.builder.Function;
+import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
+import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionBuilder;
+import io.fabric8.kubernetes.client.*;
+import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.Watchable;
@@ -25,7 +24,8 @@ import static io.radanalytics.operator.common.AnsiColors.ANSI_RESET;
 /**
  * This abstract class represents the extension point of the abstract-operator library.
  * By extending this class and overriding the methods, you will be able to watch on the
- * configmaps you are interested in and handle the life-cycle of your objects accordingly.
+ * configmaps or custom resources you are interested in and handle the life-cycle of your
+ * objects accordingly.
  *
  * Don't forget to add the @Operator annotation of the children classes.
  *
@@ -44,12 +44,14 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     private final Map<String, String> selector;
     private final String operatorName;
     private final Class<T> infoClass;
+    private final boolean isCrd;
 
-    private volatile Watch configMapWatch;
+    private volatile Watch watch;
 
     public AbstractOperator() {
         this.entityName = getClass().getAnnotation(Operator.class).forKind();
         this.infoClass = (Class<T>) getClass().getAnnotation(Operator.class).infoClass();
+        this.isCrd = getClass().getAnnotation(Operator.class).crd();
         String wannabePrefix = getClass().getAnnotation(Operator.class).prefix();
         this.prefix = wannabePrefix + (!wannabePrefix.endsWith("/") ? "/" : "");
         this.selector = LabelsHelper.forKind(entityName, prefix);
@@ -58,7 +60,8 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
     /**
      * In this method, the user of the abstract-operator is assumed to handle the creation of
-     * a new entity of type T. This method is called when the config map with given type is created.
+     * a new entity of type T. This method is called when the config map or custom resource with given
+     * type is created.
      * The common use-case would be creating some new resources in the
      * Kubernetes cluster (using @see this.client), like replication controllers with pod specifications
      * and custom images and settings. But one can do arbitrary work here, like calling external APIs, etc.
@@ -69,20 +72,20 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     abstract protected void onAdd(T entity);
 
     /**
-     * This method should handle the deletion of the resource that was represented by the config map.
-     * The method is called when the corresponding config map is deleted in the Kubernetes cluster.
+     * This method should handle the deletion of the resource that was represented by the config map or custom resource.
+     * The method is called when the corresponding config map or custom resource is deleted in the Kubernetes cluster.
      * Some suggestion what to do here would be: cleaning the resources, deleting some resources in K8s, etc.
      *
-     * @param entity      entity that represents the config map that has just been created.
+     * @param entity      entity that represents the config map or custom resource that has just been created.
      *                    The type of the entity is passed as a type parameter to this class.
      */
     abstract protected void onDelete(T entity);
 
     /**
-     * It's called when one modifies the configmap of type 'T' (that passes <code>isSupported</code> check)
+     * It's called when one modifies the configmap of type 'T' (that passes <code>isSupported</code> check) or custom resource.
      * If this method is not overriden, the implicit behavior is calling <code>onDelete</code> and <code>onAdd</code>.
      *
-     * @param entity      entity that represents the config map that has just been created.
+     * @param entity      entity that represents the config map or custom resource that has just been created.
      *                    The type of the entity is passed as a type parameter to this class.
      */
     protected void onModify(T entity) {
@@ -91,7 +94,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     }
 
     /**
-     * Override this method to do arbitrary work before the operator starts listening on configmaps.
+     * Override this method to do arbitrary work before the operator starts listening on configmaps or custom resources.
      */
     protected void onInit() {
         // no-op by default
@@ -122,17 +125,32 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         return HasDataHelper.parseCM(infoClass, cm);
     }
 
+    protected T convertCrd(InfoClass info) {
+        return infoClass.cast(info.getInfo());
+    }
+
     public String getName() {
         return operatorName;
     }
 
+    /**
+     * Starts the operator and creates the watch
+     * @return CompletableFuture
+     */
     public CompletableFuture<Watch> start() {
         log.info("Starting {} for namespace {}", operatorName, namespace);
+
+        CustomResourceDefinition crd = null;
+        if (isCrd) {
+            crd = initCrds();
+        }
+
+        // this can be overriden in child operators
         onInit();
 
-        CompletableFuture<Watch> future = createConfigMapWatch();
+        CompletableFuture<Watch> future = isCrd ? createCRDWatch(crd) : createConfigMapWatch();
         future.thenApply(res -> {
-                this.configMapWatch = res;
+                this.watch = res;
                 log.info("{} running for namespace {}", operatorName, namespace);
                 return res;
         }).exceptionally(e -> {
@@ -142,9 +160,27 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         return future;
     }
 
+    private CustomResourceDefinition initCrds() {
+        // todo: data format?
+        final String newPrefix = prefix.substring(0, prefix.length() - 1);
+        final String plural = this.entityName + "s";
+        CustomResourceDefinition crd = new CustomResourceDefinitionBuilder()
+                .withApiVersion("apiextensions.k8s.io/v1beta1")
+                .withNewMetadata().withName(plural + "." + newPrefix)
+                .endMetadata()
+                .withNewSpec().withNewNames().withKind(this.entityName).withPlural(plural).endNames()
+                .withGroup(newPrefix)
+                .withVersion("v1")
+                .withScope("Namespaced")
+                .endSpec()
+                .build();
+        client.customResourceDefinitions().createOrReplace(crd);
+        return crd;
+    }
+
     public void stop() {
         log.info("Stopping {} for namespace {}", operatorName, namespace);
-        configMapWatch.close();
+        watch.close();
         client.close();
     }
 
@@ -161,28 +197,10 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                         if (entity == null) {
                             log.error("something went wrong, unable to parse {} definition", entityName);
                         }
-                        String name = entity.getName();
-                        switch (action) {
-                            case ADDED:
-                                log.info("{}creating{} {}:  \n{}\n", ANSI_G, ANSI_RESET, entityName, name);
-                                onAdd(entity);
-                                log.info("{} {} has been {}created{}", entityName, name, ANSI_G, ANSI_RESET);
-                                break;
-                            case DELETED:
-                                log.info("{}deleting{} {}:  \n{}\n", ANSI_G, ANSI_RESET, entityName, name);
-                                onDelete(entity);
-                                log.info("{} {} has been {}deleted{}", entityName, name, ANSI_G, ANSI_RESET);
-                                break;
-                            case MODIFIED:
-                                log.info("{}modifying{} {}:  \n{}\n", ANSI_G, ANSI_RESET, entityName, name);
-                                onModify(entity);
-                                log.info("{} {} has been {}modified{}", entityName, name, ANSI_G, ANSI_RESET);
-                                break;
-                            case ERROR:
-                                log.error("Failed ConfigMap {} in namespace{} ", cm, namespace);
-                                break;
-                            default:
-                                log.error("Unknown action: {} in namespace {}", action, namespace);
+                        if (action.equals(Action.ERROR)) {
+                            log.error("Failed ConfigMap {} in namespace{} ", cm, namespace);
+                        } else {
+                            handleAction(action, entity);
                         }
                     } else {
                         log.error("Unknown CM kind: {}", cm.toString());
@@ -211,11 +229,99 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         return cf;
     }
 
+    public static class InfoClass<U> extends CustomResource {
+        private U info;
+
+        public U getInfo() {
+            return info;
+        }
+
+        public void setInfo(U info) {
+            this.info = info;
+        }
+    }
+
+    public static class InfoClassDoneable<S> extends CustomResourceDoneable<InfoClass<S>> {
+        public InfoClassDoneable(InfoClass<S> resource, Function function) {
+            super(resource, function);
+        }
+    }
+
+    public class InfoList<V> extends CustomResourceList<InfoClass<V>> {
+    }
+
+    private CompletableFuture<Watch> createCRDWatch(CustomResourceDefinition crd) {
+        CompletableFuture<Watch> cf = CompletableFuture.supplyAsync(() -> {
+            MixedOperation<InfoClass, InfoList, InfoClassDoneable, Resource<InfoClass, InfoClassDoneable>> aux =
+                    client.customResources(crd, InfoClass.class, InfoList.class, InfoClassDoneable.class);
+
+//            https://github.com/fabric8io/kubernetes-client/blob/master/kubernetes-examples/src/main/java/io/fabric8/kubernetes/examples/CRDExample.java
+            Watchable<Watch, Watcher<InfoClass>> watchable = "*".equals(namespace) ? aux.inAnyNamespace().withLabels(selector) : aux.inNamespace(namespace).withLabels(selector);
+            Watch watch = watchable.watch(new Watcher<InfoClass>() {
+                @Override
+                public void eventReceived(Action action, InfoClass info) {
+                    log.info("Custom resource \n{}\n in namespace {} was {}", info, namespace, action);
+                    T entity = convertCrd(info);
+                    if (entity == null) {
+                        log.error("something went wrong, unable to parse {} definition", entityName);
+                    }
+                    if (action.equals(Action.ERROR)) {
+                        log.error("Failed Custom resource {} in namespace{} ", info, namespace);
+                    } else {
+                        handleAction(action, entity);
+                    }
+                }
+
+                @Override
+                public void onClose(KubernetesClientException e) {
+                    if (e != null) {
+                        log.error("Watcher closed with exception in namespace {}", namespace, e);
+                        recreateConfigMapWatch();
+                    } else {
+                        log.info("Watcher closed in namespace {}", namespace);
+                    }
+                }
+            });
+            return watch;
+        }, Entrypoint.EXECUTORS);
+        cf.thenApply(w -> {
+            log.info("CustomResource watcher running for labels {}", selector);
+            return w;
+        }).exceptionally(e -> {
+            log.error("CustomResource watcher failed to start", e.getCause());
+            return null;
+        });
+        return cf;
+    }
+
+    private void handleAction(Watcher.Action action, T entity) {
+        String name = entity.getName();
+        switch (action) {
+            case ADDED:
+                log.info("{}creating{} {}:  \n{}\n", ANSI_G, ANSI_RESET, entityName, name);
+                onAdd(entity);
+                log.info("{} {} has been {}created{}", entityName, name, ANSI_G, ANSI_RESET);
+                break;
+            case DELETED:
+                log.info("{}deleting{} {}:  \n{}\n", ANSI_G, ANSI_RESET, entityName, name);
+                onDelete(entity);
+                log.info("{} {} has been {}deleted{}", entityName, name, ANSI_G, ANSI_RESET);
+                break;
+            case MODIFIED:
+                log.info("{}modifying{} {}:  \n{}\n", ANSI_G, ANSI_RESET, entityName, name);
+                onModify(entity);
+                log.info("{} {} has been {}modified{}", entityName, name, ANSI_G, ANSI_RESET);
+                break;
+            default:
+                log.error("Unknown action: {} in namespace {}", action, namespace);
+        }
+    }
+
     private void recreateConfigMapWatch() {
         CompletableFuture<Watch> configMapWatch = createConfigMapWatch();
         configMapWatch.thenApply(res -> {
             log.info("ConfigMap watch recreated in namespace {}", namespace);
-            this.configMapWatch = res;
+            this.watch = res;
             return res;
         }).exceptionally(e -> {
             log.error("Failed to recreate ConfigMap watch in namespace {}", namespace);
