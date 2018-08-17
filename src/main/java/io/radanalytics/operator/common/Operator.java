@@ -12,4 +12,5 @@ public @interface Operator {
     String forKind();
     String prefix();
     Class<? extends EntityInfo> infoClass();
+    boolean crd() default false;
 }
