@@ -46,7 +46,9 @@ public class HasDataHelper {
                 e.printStackTrace();
             }
         }
-        entity.setName(name);
+        if (entity.getName() == null) {
+            entity.setName(name);
+        }
         return entity;
     }
 

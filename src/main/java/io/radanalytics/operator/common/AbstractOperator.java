@@ -1,5 +1,6 @@
 package io.radanalytics.operator.common;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.builder.Function;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
@@ -15,8 +16,11 @@ import io.radanalytics.operator.resource.LabelsHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.radanalytics.operator.common.AnsiColors.ANSI_G;
 import static io.radanalytics.operator.common.AnsiColors.ANSI_RESET;
@@ -51,7 +55,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     public AbstractOperator() {
         this.entityName = getClass().getAnnotation(Operator.class).forKind();
         this.infoClass = (Class<T>) getClass().getAnnotation(Operator.class).infoClass();
-        this.isCrd = getClass().getAnnotation(Operator.class).crd();
+        this.isCrd = getClass().getAnnotation(Operator.class).crd() || "true".equals(System.getenv("CRD"));
         String wannabePrefix = getClass().getAnnotation(Operator.class).prefix();
         this.prefix = wannabePrefix + (!wannabePrefix.endsWith("/") ? "/" : "");
         this.selector = LabelsHelper.forKind(entityName, prefix);
@@ -126,7 +130,13 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     }
 
     protected T convertCrd(InfoClass info) {
-        return infoClass.cast(info.getInfo());
+        String name = info.getMetadata().getName();
+        ObjectMapper mapper = new ObjectMapper();
+        T infoSpec = mapper.convertValue(info.getSpec(), infoClass);
+        if (infoSpec.getName() == null) {
+            infoSpec.setName(name);
+        }
+        return infoSpec;
     }
 
     public String getName() {
@@ -161,7 +171,16 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     }
 
     private CustomResourceDefinition initCrds() {
-        // todo: data format?
+        List<CustomResourceDefinition> crds = client.customResourceDefinitions()
+                .list()
+                .getItems()
+                .stream()
+                .filter(p -> this.entityName.equals(p.getSpec().getNames().getKind()))
+                .collect(Collectors.toList());
+        if (!crds.isEmpty()) {
+            return crds.get(0);
+        }
+
         final String newPrefix = prefix.substring(0, prefix.length() - 1);
         final String plural = this.entityName + "s";
         CustomResourceDefinition crd = new CustomResourceDefinitionBuilder()
@@ -175,6 +194,9 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                 .endSpec()
                 .build();
         client.customResourceDefinitions().createOrReplace(crd);
+
+        // register the new crd for json serialization
+        io.fabric8.kubernetes.internal.KubernetesDeserializer.registerCustomKind(newPrefix + "/" + crd.getSpec().getVersion() + "#" + this.entityName, InfoClass.class);
         return crd;
     }
 
@@ -230,14 +252,14 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     }
 
     public static class InfoClass<U> extends CustomResource {
-        private U info;
+        private U spec;
 
-        public U getInfo() {
-            return info;
+        public U getSpec() {
+            return spec;
         }
 
-        public void setInfo(U info) {
-            this.info = info;
+        public void setSpec(U spec) {
+            this.spec = spec;
         }
     }
 
@@ -256,7 +278,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                     client.customResources(crd, InfoClass.class, InfoList.class, InfoClassDoneable.class);
 
 //            https://github.com/fabric8io/kubernetes-client/blob/master/kubernetes-examples/src/main/java/io/fabric8/kubernetes/examples/CRDExample.java
-            Watchable<Watch, Watcher<InfoClass>> watchable = "*".equals(namespace) ? aux.inAnyNamespace().withLabels(selector) : aux.inNamespace(namespace).withLabels(selector);
+            Watchable<Watch, Watcher<InfoClass>> watchable = "*".equals(namespace) ? aux.inAnyNamespace() : aux.inNamespace(namespace);
             Watch watch = watchable.watch(new Watcher<InfoClass>() {
                 @Override
                 public void eventReceived(Action action, InfoClass info) {
@@ -285,7 +307,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
             return watch;
         }, Entrypoint.EXECUTORS);
         cf.thenApply(w -> {
-            log.info("CustomResource watcher running for labels {}", selector);
+            log.info("CustomResource watcher running for kinds {}", entityName);
             return w;
         }).exceptionally(e -> {
             log.error("CustomResource watcher failed to start", e.getCause());
