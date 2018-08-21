@@ -133,6 +133,15 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         String name = info.getMetadata().getName();
         ObjectMapper mapper = new ObjectMapper();
         T infoSpec = mapper.convertValue(info.getSpec(), infoClass);
+        if (infoSpec == null) { // empty spec
+            try {
+                infoSpec = infoClass.newInstance();
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+        }
         if (infoSpec.getName() == null) {
             infoSpec.setName(name);
         }
