@@ -53,7 +53,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     private volatile Watch watch;
 
     public AbstractOperator() {
-        this.entityName = getClass().getAnnotation(Operator.class).forKind();
+        this.entityName = getClass().getAnnotation(Operator.class).forKind().toLowerCase();
         this.infoClass = (Class<T>) getClass().getAnnotation(Operator.class).infoClass();
         this.isCrd = getClass().getAnnotation(Operator.class).crd() || "true".equals(System.getenv("CRD"));
         String wannabePrefix = getClass().getAnnotation(Operator.class).prefix();
@@ -175,19 +175,19 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                 .list()
                 .getItems()
                 .stream()
-                .filter(p -> this.entityName.toLowerCase().equals(p.getSpec().getNames().getKind()))
+                .filter(p -> this.entityName.equals(p.getSpec().getNames().getKind()))
                 .collect(Collectors.toList());
         if (!crds.isEmpty()) {
             return crds.get(0);
         }
 
         final String newPrefix = prefix.substring(0, prefix.length() - 1);
-        final String plural = (this.entityName + "s").toLowerCase();
+        final String plural = this.entityName + "s";
         CustomResourceDefinition crd = new CustomResourceDefinitionBuilder()
                 .withApiVersion("apiextensions.k8s.io/v1beta1")
                 .withNewMetadata().withName(plural + "." + newPrefix)
                 .endMetadata()
-                .withNewSpec().withNewNames().withKind(this.entityName.toLowerCase()).withPlural(plural).endNames()
+                .withNewSpec().withNewNames().withKind(this.entityName).withPlural(plural).endNames()
                 .withGroup(newPrefix)
                 .withVersion("v1")
                 .withScope("Namespaced")
