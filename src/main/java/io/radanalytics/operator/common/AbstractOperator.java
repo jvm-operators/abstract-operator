@@ -185,7 +185,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         final String plural = this.entityName + "s";
         CustomResourceDefinition crd = new CustomResourceDefinitionBuilder()
                 .withApiVersion("apiextensions.k8s.io/v1beta1")
-                .withNewMetadata().withName(plural + "." + newPrefix)
+                .withNewMetadata().withName(plural.toLowerCase() + "." + newPrefix)
                 .endMetadata()
                 .withNewSpec().withNewNames().withKind(this.entityName).withPlural(plural).endNames()
                 .withGroup(newPrefix)
