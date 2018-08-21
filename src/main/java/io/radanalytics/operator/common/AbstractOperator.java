@@ -175,19 +175,19 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                 .list()
                 .getItems()
                 .stream()
-                .filter(p -> this.entityName.equals(p.getSpec().getNames().getKind()))
+                .filter(p -> this.entityName.toLowerCase().equals(p.getSpec().getNames().getKind()))
                 .collect(Collectors.toList());
         if (!crds.isEmpty()) {
             return crds.get(0);
         }
 
         final String newPrefix = prefix.substring(0, prefix.length() - 1);
-        final String plural = this.entityName + "s";
+        final String plural = (this.entityName + "s").toLowerCase();
         CustomResourceDefinition crd = new CustomResourceDefinitionBuilder()
                 .withApiVersion("apiextensions.k8s.io/v1beta1")
-                .withNewMetadata().withName(plural.toLowerCase() + "." + newPrefix)
+                .withNewMetadata().withName(plural + "." + newPrefix)
                 .endMetadata()
-                .withNewSpec().withNewNames().withKind(this.entityName).withPlural(plural).endNames()
+                .withNewSpec().withNewNames().withKind(this.entityName.toLowerCase()).withPlural(plural).endNames()
                 .withGroup(newPrefix)
                 .withVersion("v1")
                 .withScope("Namespaced")
