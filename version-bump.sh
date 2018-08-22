@@ -23,7 +23,7 @@ gitFu() {
   [[ $# -lt 2 ]] && "usage: gitFu x.y.z x'.y'.z' <micro|minor|major>" && exit 1
   old=$1
   new=$2
-  mvn versions:set -DnewVersion=$new
+  mvn -U versions:set -DnewVersion=$new
   git add pom.xml
   set -x
   git commit -m "$3 version bump from $old to $new"
@@ -36,7 +36,7 @@ main() {
   checkParams $@
   PARAM=$1
 
-  CURRENT=`mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version|grep -Ev "(^\[|Download\w+:)"`
+  CURRENT=`mvn -U org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version|grep -Ev "(^\[|Download\w+:)"`
   VERSION=`echo $CURRENT | sed 's/-SNAPSHOT//g'`
 
   maj=`echo $VERSION | sed 's/^\([0-9]\+\)\..*$/\1/g'`
