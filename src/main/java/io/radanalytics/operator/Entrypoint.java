@@ -165,10 +165,10 @@ public class Entrypoint {
         } catch (Exception e) {
             // ignore, not critical
         }
-        log.info("\n{}Operator{} has started in version {}{}{}. {}\n", ANSI_R, ANSI_RESET, ANSI_G,
-                version, ANSI_RESET, FOO);
+        log.info("\n{}Operator{} has started in version {}{}{}. {}\n", re(), xx(), gr(),
+                version, xx(), FOO);
         if (!gitSha.isEmpty()) {
-            log.info("Git sha: {}{}{}", ANSI_Y, gitSha, ANSI_RESET);
+            log.info("Git sha: {}{}{}", ye(), gitSha, xx());
         }
         log.info("==================\n");
     }
