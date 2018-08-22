@@ -22,8 +22,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.radanalytics.operator.common.AnsiColors.ANSI_G;
-import static io.radanalytics.operator.common.AnsiColors.ANSI_RESET;
+import static io.radanalytics.operator.common.AnsiColors.gr;
+import static io.radanalytics.operator.common.AnsiColors.xx;
 
 /**
  * This abstract class represents the extension point of the abstract-operator library.
@@ -329,19 +329,19 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         String name = entity.getName();
         switch (action) {
             case ADDED:
-                log.info("{}creating{} {}:  \n{}\n", ANSI_G, ANSI_RESET, entityName, name);
+                log.info("{}creating{} {}:  \n{}\n", gr(), xx(), entityName, name);
                 onAdd(entity);
-                log.info("{} {} has been {}created{}", entityName, name, ANSI_G, ANSI_RESET);
+                log.info("{} {} has been {}created{}", entityName, name, gr(), xx());
                 break;
             case DELETED:
-                log.info("{}deleting{} {}:  \n{}\n", ANSI_G, ANSI_RESET, entityName, name);
+                log.info("{}deleting{} {}:  \n{}\n", gr(), xx(), entityName, name);
                 onDelete(entity);
-                log.info("{} {} has been {}deleted{}", entityName, name, ANSI_G, ANSI_RESET);
+                log.info("{} {} has been {}deleted{}", entityName, name, gr(), xx());
                 break;
             case MODIFIED:
-                log.info("{}modifying{} {}:  \n{}\n", ANSI_G, ANSI_RESET, entityName, name);
+                log.info("{}modifying{} {}:  \n{}\n", gr(), xx(), entityName, name);
                 onModify(entity);
-                log.info("{} {} has been {}modified{}", entityName, name, ANSI_G, ANSI_RESET);
+                log.info("{} {} has been {}modified{}", entityName, name, gr(), xx());
                 break;
             default:
                 log.error("Unknown action: {} in namespace {}", action, namespace);
