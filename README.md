@@ -30,3 +30,5 @@ class FooOperator extends AbstractOperator[FooInfo] {
   }
 }
 ```
+## Documentation
+[javadoc](https://jvm-operators.github.io/abstract-operator/)
