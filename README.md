@@ -8,6 +8,7 @@
 ## Example Implementations
 * [spark-operator](https://github.com/radanalyticsio/spark-operator) - Java operator for managing Apache Spark clusters and apps
 * [scala-example-operator](https://github.com/jvm-operators/scala-example-operator) - Minimalistic operator in Scala
+* [kotlin-example-operator](https://github.com/jvm-operators/kotlin-example-operator) - Minimalistic operator in Kotlin
 
 ## Code
 This library can be simply used by adding it to classpath; creating a new class that extends `AbstractOperator`. This 'concrete operator' class needs to also have the `@Operator` annotation on it. For capturing the information about the monitored resources one has to also create a class that extends `EntityInfo` and have arbitrary fields on it with getters and setters.
