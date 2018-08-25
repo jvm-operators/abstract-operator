@@ -10,7 +10,8 @@ public class AnsiColors {
     private static final String ANSI_Y = "\u001B[33m";
     private static final String ANSI_RESET = "\u001B[0m";
 
-    public static final boolean COLORS = "true".equals(System.getenv("COLORS"));
+    // if empty, it's true
+    public static final boolean COLORS = !"false".equals(System.getenv("COLORS"));
 
     public static String re() {
         return COLORS ? ANSI_R : "";
