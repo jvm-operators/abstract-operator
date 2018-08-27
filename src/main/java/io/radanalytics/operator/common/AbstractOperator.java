@@ -49,6 +49,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     private final String operatorName;
     private final Class<T> infoClass;
     private final boolean isCrd;
+    private CustomResourceDefinition crd;
 
     private volatile Watch watch;
 
@@ -159,9 +160,8 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     public CompletableFuture<Watch> start() {
         log.info("Starting {} for namespace {}", operatorName, namespace);
 
-        CustomResourceDefinition crd = null;
         if (isCrd) {
-            crd = initCrds();
+            this.crd = initCrds();
         }
 
         // this can be overriden in child operators
@@ -242,7 +242,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                 public void onClose(KubernetesClientException e) {
                     if (e != null) {
                         log.error("Watcher closed with exception in namespace {}", namespace, e);
-                        recreateConfigMapWatch();
+                        recreateWatcher();
                     } else {
                         log.info("Watcher closed in namespace {}", namespace);
                     }
@@ -307,7 +307,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                 public void onClose(KubernetesClientException e) {
                     if (e != null) {
                         log.error("Watcher closed with exception in namespace {}", namespace, e);
-                        recreateConfigMapWatch();
+                        recreateWatcher();
                     } else {
                         log.info("Watcher closed in namespace {}", namespace);
                     }
@@ -348,14 +348,15 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         }
     }
 
-    private void recreateConfigMapWatch() {
-        CompletableFuture<Watch> configMapWatch = createConfigMapWatch();
+    private void recreateWatcher() {
+        CompletableFuture<Watch> configMapWatch = isCrd ? createCRDWatch(this.crd): createConfigMapWatch();
+        final String crdOrCm = isCrd ? "CustomResource" : "ConfigMap";
         configMapWatch.thenApply(res -> {
-            log.info("ConfigMap watch recreated in namespace {}", namespace);
+            log.info("{} watch recreated in namespace {}", crdOrCm, namespace);
             this.watch = res;
             return res;
         }).exceptionally(e -> {
-            log.error("Failed to recreate ConfigMap watch in namespace {}", namespace);
+            log.error("Failed to recreate {} watch in namespace {}", crdOrCm, namespace);
             return null;
         });
     }
