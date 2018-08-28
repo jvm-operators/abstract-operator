@@ -54,8 +54,8 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     private volatile Watch watch;
 
     public AbstractOperator() {
-        this.entityName = getClass().getAnnotation(Operator.class).forKind().toLowerCase();
-        this.infoClass = (Class<T>) getClass().getAnnotation(Operator.class).infoClass();
+        this.infoClass = (Class<T>) getClass().getAnnotation(Operator.class).forKind();
+        this.entityName = infoClass.getSimpleName().toLowerCase();
         this.isCrd = getClass().getAnnotation(Operator.class).crd() || "true".equals(System.getenv("CRD"));
         String wannabePrefix = getClass().getAnnotation(Operator.class).prefix();
         wannabePrefix = "".equals(wannabePrefix) ? getClass().getPackage().getName() : wannabePrefix;
