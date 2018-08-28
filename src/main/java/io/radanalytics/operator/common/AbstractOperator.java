@@ -58,6 +58,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         this.infoClass = (Class<T>) getClass().getAnnotation(Operator.class).infoClass();
         this.isCrd = getClass().getAnnotation(Operator.class).crd() || "true".equals(System.getenv("CRD"));
         String wannabePrefix = getClass().getAnnotation(Operator.class).prefix();
+        wannabePrefix = "".equals(wannabePrefix) ? getClass().getPackage().getName() : wannabePrefix;
         this.prefix = wannabePrefix + (!wannabePrefix.endsWith("/") ? "/" : "");
         this.selector = LabelsHelper.forKind(entityName, prefix);
         this.operatorName = "'" + entityName + "' operator";

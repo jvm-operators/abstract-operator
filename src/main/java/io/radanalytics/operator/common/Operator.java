@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
 public @interface Operator {
     boolean enabled() default true;
     String forKind();
-    String prefix();
+    String prefix() default "";
     Class<? extends EntityInfo> infoClass();
     boolean crd() default false;
 }
