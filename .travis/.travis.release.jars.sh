@@ -22,22 +22,22 @@ main() {
 }
 
 releaseSnapshot() {
-    make build-travis && ./mvnw -s ./.travis/settings.xml clean deploy
+    make build-travis && mvn -s ./.travis/settings.xml clean deploy
 }
 
 release() {
     openssl aes-256-cbc -K ${encrypted_ea794cf5410d_key} -iv ${encrypted_ea794cf5410d_iv} -in ./.travis/.signing.asc.enc -out ./signing.asc -d
     gpg --fast-import ./signing.asc &> /dev/null
-    ./mvnw -s ./.travis/settings.xml clean deploy -DskipLocalStaging=true -P release
+    mvn -s ./.travis/settings.xml clean deploy -DskipLocalStaging=true -P release
     sleep 10
-    local _repo_id=`./mvnw -s ./.travis/settings.xml nexus-staging:rc-list | grep "ioradanalytics".*OPEN | cut -d' ' -f2 | tail -1`
-    ./mvnw -s ./.travis/settings.xml nexus-staging:close nexus-staging:release -DstagingRepositoryId=${_repo_id}
+    local _repo_id=`mvn -s ./.travis/settings.xml nexus-staging:rc-list | grep "ioradanalytics".*OPEN | cut -d' ' -f2 | tail -1`
+    mvn -s ./.travis/settings.xml nexus-staging:close nexus-staging:release -DstagingRepositoryId=${_repo_id}
 }
 
 javadoc() {
     [ -z "$GH_TOKEN" ] && echo "GH_TOKEN not set, exiting.." && exit 0
     [[ "$LATEST" = "1" ]] && VERSION="latest" || VERSION=${TRAVIS_TAG}
-    ./mvnw -s ./.travis/settings.xml javadoc:javadoc
+    mvn -s ./.travis/settings.xml javadoc:javadoc
     cp -r ./target/site/apidocs/ /tmp/
     switchBranch
     mv /tmp/apidocs ./docs/${VERSION}
