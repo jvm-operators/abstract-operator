@@ -8,9 +8,9 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Operator {
-    boolean enabled() default true;
-    String forKind();
+    Class<? extends EntityInfo> forKind();
+    String named() default "";;
     String prefix() default "";
-    Class<? extends EntityInfo> infoClass();
+    boolean enabled() default true;
     boolean crd() default false;
 }
