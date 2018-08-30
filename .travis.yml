@@ -1,4 +1,7 @@
 language: java
+sudo: true
+jdk:
+  - oraclejdk8
 
 # skip the implicit install step
 install: true
