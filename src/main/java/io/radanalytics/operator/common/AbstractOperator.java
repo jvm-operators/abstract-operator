@@ -414,4 +414,28 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     public void setNamespace(String namespace) {
         this.namespace = namespace;
     }
+
+    public void setEntityName(String entityName) {
+        this.entityName = entityName;
+    }
+
+    public void setPrefix(String prefix) {
+        this.prefix = prefix;
+    }
+
+    public void setInfoClass(Class<T> infoClass) {
+        this.infoClass = infoClass;
+    }
+
+    public void setCrd(boolean crd) {
+        isCrd = crd;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public void setNamed(String named) {
+        this.named = named;
+    }
 }
