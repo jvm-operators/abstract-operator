@@ -32,6 +32,7 @@ release() {
     sleep 10
     local _repo_id=`mvn -s ./.travis/settings.xml nexus-staging:rc-list | grep "ioradanalytics".*OPEN | cut -d' ' -f2 | tail -1`
     mvn -s ./.travis/settings.xml nexus-staging:close nexus-staging:release -DstagingRepositoryId=${_repo_id}
+    rm ./signing.asc
 }
 
 javadoc() {
