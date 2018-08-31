@@ -39,30 +39,38 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
     protected static final Logger log = LoggerFactory.getLogger(AbstractOperator.class.getName());
 
+    // client, isOpenshift and namespace are being set in the Entrypoint from the context
     protected KubernetesClient client;
     protected boolean isOpenshift;
     protected String namespace;
-    protected final String entityName;
-    protected final String prefix;
 
-    private final Map<String, String> selector;
-    private final String operatorName;
-    private final Class<T> infoClass;
-    private final boolean isCrd;
+    // these fields can be directly set from languages that don't support annotations, like JS
+    protected String entityName;
+    protected String prefix;
+    protected Class<T> infoClass;
+    protected boolean isCrd;
+    protected boolean enabled = true;
+    protected String named;
+
+    private Map<String, String> selector;
+    private String operatorName;
     private CustomResourceDefinition crd;
 
     private volatile Watch watch;
 
     public AbstractOperator() {
         Operator annotation = getClass().getAnnotation(Operator.class);
-        this.infoClass = (Class<T>) annotation.forKind();
-        this.entityName = !annotation.named().isEmpty() ? annotation.named().toLowerCase() : infoClass.getSimpleName().toLowerCase();
-        this.isCrd = annotation.crd() || "true".equals(System.getenv("CRD"));
-        String wannabePrefix = annotation.prefix();
-        wannabePrefix = "".equals(wannabePrefix) ? getClass().getPackage().getName() : wannabePrefix;
-        this.prefix = wannabePrefix + (!wannabePrefix.endsWith("/") ? "/" : "");
-        this.selector = LabelsHelper.forKind(entityName, prefix);
-        this.operatorName = "'" + entityName + "' operator";
+        if (annotation != null) {
+            this.infoClass = (Class<T>) annotation.forKind();
+            this.named = annotation.named();
+            this.isCrd = annotation.crd();
+            this.enabled = annotation.enabled();
+            this.prefix = annotation.prefix();
+        } else {
+            log.info("Annotation on the operator class not found, falling back to direct field access.");
+            log.info("If the initialization fails, it's probably due to the fact that some compulsory fields are missing.");
+            log.info("Compulsory fields: infoClass");
+        }
     }
 
     /**
@@ -119,6 +127,15 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     }
 
     /**
+     * If true, start the watcher for this operator. Otherwise it's considered as disabled.
+     *
+     * @return enabled
+     */
+    public boolean isEnabled() {
+        return this.enabled;
+    }
+
+    /**
      * Converts the configmap representation into T.
      * Normally, you may want to call something like:
      *
@@ -160,6 +177,14 @@ public abstract class AbstractOperator<T extends EntityInfo> {
      * @return CompletableFuture
      */
     public CompletableFuture<Watch> start() {
+        initInternals();
+        this.selector = LabelsHelper.forKind(entityName, prefix);
+        boolean ok = checkIntegrity();
+        if (!ok) {
+            log.warn("Unable to initialize the operator correctly, some compulsory fields are missing.");
+            return CompletableFuture.completedFuture(null);
+        }
+
         log.info("Starting {} for namespace {}", operatorName, namespace);
 
         if (isCrd) {
@@ -179,6 +204,22 @@ public abstract class AbstractOperator<T extends EntityInfo> {
             return null;
         });
         return future;
+    }
+
+    private boolean checkIntegrity() {
+        boolean ok = infoClass != null;
+        ok = ok && entityName != null && !entityName.isEmpty();
+        ok = ok && prefix != null && !prefix.isEmpty() && prefix.endsWith("/");
+        ok = ok && operatorName != null && operatorName.endsWith("operator");
+        return ok;
+    }
+
+    private void initInternals() {
+        entityName = (named != null && !named.isEmpty()) ? named.toLowerCase() : (entityName != null && !entityName.isEmpty()) ? this.entityName.toLowerCase() : (infoClass == null ? "" : infoClass.getSimpleName().toLowerCase());
+        isCrd = isCrd || "true".equals(System.getenv("CRD"));
+        prefix = prefix == null || prefix.isEmpty() ? getClass().getPackage().getName() : prefix;
+        prefix = prefix + (!prefix.endsWith("/") ? "/" : "");
+        operatorName = "'" + entityName + "' operator";
     }
 
     private CustomResourceDefinition initCrds() {
@@ -288,7 +329,6 @@ public abstract class AbstractOperator<T extends EntityInfo> {
             MixedOperation<InfoClass, InfoList, InfoClassDoneable, Resource<InfoClass, InfoClassDoneable>> aux =
                     client.customResources(crd, InfoClass.class, InfoList.class, InfoClassDoneable.class);
 
-//            https://github.com/fabric8io/kubernetes-client/blob/master/kubernetes-examples/src/main/java/io/fabric8/kubernetes/examples/CRDExample.java
             Watchable<Watch, Watcher<InfoClass>> watchable = "*".equals(namespace) ? aux.inAnyNamespace() : aux.inNamespace(namespace);
             Watch watch = watchable.watch(new Watcher<InfoClass>() {
                 @Override

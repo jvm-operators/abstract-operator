@@ -12,6 +12,12 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.reflections.Reflections;
+import org.reflections.ReflectionsException;
+import org.reflections.scanners.ResourcesScanner;
+import org.reflections.scanners.SubTypesScanner;
+import org.reflections.scanners.TypeAnnotationsScanner;
+import org.reflections.util.ClasspathHelper;
+import org.reflections.util.ConfigurationBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,13 +25,12 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -83,9 +88,20 @@ public class Entrypoint {
     }
 
     private static CompletableFuture<Void> runForNamespace(KubernetesClient client, boolean isOpenShift, String namespace) {
-        Reflections reflections = new Reflections("io");
-//        Set<Class<? extends AbstractOperator>> operatorClasses = reflections.getSubTypesOf(AbstractOperator.class);
-        Set<Class<?>> operatorClasses = reflections.getTypesAnnotatedWith(Operator.class);
+        List<ClassLoader> classLoadersList = new LinkedList<>();
+        classLoadersList.add(ClasspathHelper.contextClassLoader());
+        classLoadersList.add(ClasspathHelper.staticClassLoader());
+
+        Set<Class<? extends AbstractOperator>> operatorClasses = null;
+        try {
+            Reflections reflections = new Reflections(new ConfigurationBuilder()
+                    .setScanners(new TypeAnnotationsScanner(), new SubTypesScanner(false), new ResourcesScanner())
+                    .setUrls(ClasspathHelper.forClassLoader(classLoadersList.toArray(new ClassLoader[0]))));
+            operatorClasses = reflections.getSubTypesOf(AbstractOperator.class);
+        } catch (ReflectionsException re) {
+            log.debug(re.getMessage());
+            // np, swallow
+        }
 
         List<Future> futures = new ArrayList<>();
         operatorClasses.stream().forEach(operatorClass -> {
@@ -94,16 +110,16 @@ public class Entrypoint {
                     log.error("Class {} annotated with @Operator doesn't extend the AbstractOperator", operatorClass);
                     System.exit(1);
                 }
-                Operator annotation = operatorClass.getAnnotation(Operator.class);
-                if (!annotation.enabled()) {
+
+                final AbstractOperator operator = ((Class<? extends AbstractOperator>)operatorClass).newInstance();
+                if (!operator.isEnabled()) {
                     log.info("Skipping initialization of {} operator", operatorClass);
                     return;
                 }
-
-                final AbstractOperator operator = ((Class<? extends AbstractOperator>)operatorClass).newInstance();
                 operator.setClient(client);
                 operator.setNamespace(namespace);
                 operator.setOpenshift(isOpenShift);
+
                 CompletableFuture<Watch> future = operator.start().thenApply(res -> {
                     log.info("{} started in namespace {}", operator.getName(), namespace);
                     return res;
