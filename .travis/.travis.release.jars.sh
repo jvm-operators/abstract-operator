@@ -48,7 +48,9 @@ javadoc() {
 
     # release
     if [[ "$LATEST" != "1" ]]; then
-        ln -s ${VERSION} docs/latest-released
+        cd docs
+        ln -s ${VERSION} latest-released
+        cd -
         echo "<li><b>${VERSION}</b> - <a href='/abstract-operator/docs/${VERSION}'>docs</a> - <a href='https://search.maven.org/artifact/io.radanalytics/abstract-operator/${VERSION}/jar'>maven</a></li>"  >> ./index.html
     fi
     pushToScm ${VERSION}
