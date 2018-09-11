@@ -43,6 +43,7 @@ javadoc() {
     mvn -s ./.travis/settings.xml javadoc:javadoc
     cp -r ./target/site/apidocs/ /tmp/
     switchBranch
+    rm -rf ./docs/${VERSION} || true
     mv /tmp/apidocs ./docs/${VERSION}
 
     # release
