@@ -373,17 +373,17 @@ public abstract class AbstractOperator<T extends EntityInfo> {
             case ADDED:
                 log.info("{}creating{} {}:  \n{}\n", gr(), xx(), entityName, name);
                 onAdd(entity);
-                log.info("{} {} has been {}created{}", entityName, name, gr(), xx());
+                log.info("{} {} has been  {}created{}", entityName, name, gr(), xx());
                 break;
             case DELETED:
                 log.info("{}deleting{} {}:  \n{}\n", gr(), xx(), entityName, name);
                 onDelete(entity);
-                log.info("{} {} has been {}deleted{}", entityName, name, gr(), xx());
+                log.info("{} {} has been  {}deleted{}", entityName, name, gr(), xx());
                 break;
             case MODIFIED:
                 log.info("{}modifying{} {}:  \n{}\n", gr(), xx(), entityName, name);
                 onModify(entity);
-                log.info("{} {} has been {}modified{}", entityName, name, gr(), xx());
+                log.info("{} {} has been  {}modified{}", entityName, name, gr(), xx());
                 break;
             default:
                 log.error("Unknown action: {} in namespace {}", action, namespace);
