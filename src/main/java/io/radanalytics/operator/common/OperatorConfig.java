@@ -11,18 +11,27 @@ import java.util.Set;
 import static java.util.Arrays.asList;
 
 /**
- * Cluster Operator configuration
+ * Operator configuration
  */
 public class OperatorConfig {
 
     public static final String WATCHED_NAMESPACE = "WATCHED_NAMESPACE";
+    public static final String METRICS = "METRICS";
+    public static final String METRICS_JVM = "METRICS_JVM";
+    public static final String METRICS_PORT = "METRICS_PORT";
     public static final String OPERATOR_FULL_RECONCILIATION_INTERVAL_MS = "OPERATOR_FULL_RECONCILIATION_INTERVAL_MS";
     public static final String OPERATOR_OPERATION_TIMEOUT_MS = "OPERATOR_OPERATION_TIMEOUT_MS";
 
+    public static final boolean DEFAULT_METRICS = false;
+    public static final boolean DEFAULT_METRICS_JVM = false;
+    public static final int DEFAULT_METRICS_PORT = 8080;
     public static final long DEFAULT_FULL_RECONCILIATION_INTERVAL_MS = 120_000;
     public static final long DEFAULT_OPERATION_TIMEOUT_MS = 60_000;
 
     private final Set<String> namespaces;
+    private final boolean metrics;
+    private final boolean metricsJvm;
+    private final int metricsPort;
     private final long reconciliationIntervalMs;
     private final long operationTimeoutMs;
 
@@ -30,13 +39,20 @@ public class OperatorConfig {
      * Constructor
      *
      * @param namespaces                  namespace in which the operator will run and create resources
+     * @param metrics                     whether the metrics server for prometheus should be started
+     * @param metricsJvm                  whether to expose the internal JVM metrics, like heap, # of threads, etc.
+     * @param metricsPort                 on which port the metrics server should be listening
      * @param reconciliationIntervalMs    specify every how many milliseconds the reconciliation runs
      * @param operationTimeoutMs          timeout for internal operations specified in milliseconds
      */
-    public OperatorConfig(Set<String> namespaces, long reconciliationIntervalMs, long operationTimeoutMs) {
+    public OperatorConfig(Set<String> namespaces, boolean metrics, boolean metricsJvm, int metricsPort,
+                          long reconciliationIntervalMs, long operationTimeoutMs) {
         this.namespaces = namespaces;
         this.reconciliationIntervalMs = reconciliationIntervalMs;
         this.operationTimeoutMs = operationTimeoutMs;
+        this.metrics = metrics;
+        this.metricsJvm = metricsJvm;
+        this.metricsPort = metricsPort;
     }
 
     /**
@@ -47,7 +63,7 @@ public class OperatorConfig {
      */
     public static OperatorConfig fromMap(Map<String, String> map) {
 
-        String namespacesList = map.get(OperatorConfig.WATCHED_NAMESPACE);
+        String namespacesList = map.get(WATCHED_NAMESPACE);
         Set<String> namespaces;
         if (namespacesList == null || namespacesList.isEmpty()) {
             namespaces = null; //Collections.singleton("*");
@@ -55,19 +71,39 @@ public class OperatorConfig {
             namespaces = new HashSet<>(asList(namespacesList.trim().split("\\s*,+\\s*")));
         }
 
+        boolean metricsAux = DEFAULT_METRICS;
+        String metricsEnvVar = map.get(METRICS);
+        if (metricsEnvVar != null) {
+            metricsAux = "true".equals(metricsEnvVar.trim().toLowerCase());
+        }
+
+        boolean metricsJvmAux = DEFAULT_METRICS_JVM;
+        int metricsPortAux = DEFAULT_METRICS_PORT;
+        if (metricsAux) {
+            String metricsJvmEnvVar = map.get(METRICS_JVM);
+            if (metricsJvmEnvVar != null) {
+                metricsJvmAux = "true".equals(metricsJvmEnvVar.trim().toLowerCase());
+            }
+            String metricsPortEnvVar = map.get(METRICS_PORT);
+            if (metricsPortEnvVar != null) {
+                metricsPortAux = Integer.parseInt(metricsPortEnvVar.trim().toLowerCase());
+            }
+        }
+
         long reconciliationInterval = DEFAULT_FULL_RECONCILIATION_INTERVAL_MS;
-        String reconciliationIntervalEnvVar = map.get(OperatorConfig.OPERATOR_FULL_RECONCILIATION_INTERVAL_MS);
+        String reconciliationIntervalEnvVar = map.get(OPERATOR_FULL_RECONCILIATION_INTERVAL_MS);
         if (reconciliationIntervalEnvVar != null) {
             reconciliationInterval = Long.parseLong(reconciliationIntervalEnvVar);
         }
 
         long operationTimeout = DEFAULT_OPERATION_TIMEOUT_MS;
-        String operationTimeoutEnvVar = map.get(OperatorConfig.OPERATOR_OPERATION_TIMEOUT_MS);
+        String operationTimeoutEnvVar = map.get(OPERATOR_OPERATION_TIMEOUT_MS);
         if (operationTimeoutEnvVar != null) {
             operationTimeout = Long.parseLong(operationTimeoutEnvVar);
         }
 
-        return new OperatorConfig(namespaces, reconciliationInterval, operationTimeout);
+        return new OperatorConfig(namespaces, metricsAux, metricsJvmAux, metricsPortAux, reconciliationInterval,
+                operationTimeout);
     }
 
 
@@ -92,11 +128,27 @@ public class OperatorConfig {
         return operationTimeoutMs;
     }
 
+    public boolean isMetrics() {
+        return metrics;
+    }
+
+    public boolean isMetricsJvm() {
+        return metricsJvm;
+    }
+
+    public int getMetricsPort() {
+        return metricsPort;
+    }
+
     @Override
     public String toString() {
-        return "OperatorConfig(" +
+        return "OperatorConfig{" +
                 "namespaces=" + namespaces +
-                ",reconciliationIntervalMs=" + reconciliationIntervalMs +
-                ")";
+                ", metrics=" + metrics +
+                ", metricsJvm=" + metricsJvm +
+                ", metricsPort=" + metricsPort +
+                ", reconciliationIntervalMs=" + reconciliationIntervalMs +
+                ", operationTimeoutMs=" + operationTimeoutMs +
+                '}';
     }
 }

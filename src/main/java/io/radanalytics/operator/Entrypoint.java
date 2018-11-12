@@ -1,9 +1,12 @@
 package io.radanalytics.operator;
 
 import com.jcabi.manifests.Manifests;
+import com.sun.net.httpserver.HttpServer;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.Watch;
+import io.prometheus.client.exporter.HTTPServer;
+import io.prometheus.client.hotspot.DefaultExports;
 import io.radanalytics.operator.common.AbstractOperator;
 import io.radanalytics.operator.common.Operator;
 import io.radanalytics.operator.common.OperatorConfig;
@@ -57,11 +60,14 @@ public class Entrypoint {
 //        KubernetesClient client = new DefaultKubernetesClient(getUnsafeOkHttpClient(), new ConfigBuilder().build());
         KubernetesClient client = new DefaultKubernetesClient();
         boolean isOpenshift = isOnOpenShift(client);
-        run(client, isOpenshift, config).exceptionally(ex -> {
-            log.error("Unable to start operator for 1 or more namespace", ex);
+        CompletableFuture<Void> future = run(client, isOpenshift, config).exceptionally(ex -> {
+            log.error("Unable to start operator for one or more namespaces", ex);
             System.exit(1);
             return null;
         });
+        if (config.isMetrics()) {
+            future.thenCompose(s -> runMetrics(isOpenshift, config));
+        }
     }
 
     private static CompletableFuture<Void> run(KubernetesClient client, boolean isOpenShift, OperatorConfig config) {
@@ -85,6 +91,19 @@ public class Entrypoint {
             }
         }
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[]{}));
+    }
+
+    private static CompletableFuture<Void> runMetrics(boolean isOpenShift, OperatorConfig config) {
+        try {
+            new HTTPServer(config.getMetricsPort());
+            // todo: create also the service and for openshift also expose the service (?)
+        } catch (IOException e) {
+            log.error("Can't start metrics server because of: {} ", e.getMessage());
+            e.printStackTrace();
+        }
+        if (config.isMetricsJvm()) {
+            DefaultExports.initialize();
+        }
     }
 
     private static CompletableFuture<Void> runForNamespace(KubernetesClient client, boolean isOpenShift, String namespace) {
