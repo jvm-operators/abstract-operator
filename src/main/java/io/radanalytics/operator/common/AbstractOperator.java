@@ -197,7 +197,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         CompletableFuture<Watch> future = isCrd ? createCRDWatch(crd) : createConfigMapWatch();
         future.thenApply(res -> {
                 this.watch = res;
-                log.info("{} running for namespace {}", operatorName, namespace);
+                log.info("{}{} running{} for namespace {}", AnsiColors.gr(), operatorName, AnsiColors.xx(), namespace);
                 return res;
         }).exceptionally(e -> {
             log.error("{} startup failed for namespace {}", operatorName, namespace, e.getCause());

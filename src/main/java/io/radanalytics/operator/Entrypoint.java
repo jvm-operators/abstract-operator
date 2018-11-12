@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.client.utils.HttpClientUtils;
 import io.prometheus.client.exporter.HTTPServer;
 import io.prometheus.client.hotspot.DefaultExports;
 import io.radanalytics.operator.common.AbstractOperator;
+import io.radanalytics.operator.common.AnsiColors;
 import io.radanalytics.operator.common.OperatorConfig;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -65,9 +66,9 @@ public class Entrypoint {
         printInfo();
 
         if (isOpenShift) {
-            log.info("OpenShift environment detected.");
+            log.info("{}OpenShift{} environment detected.", AnsiColors.ye(), AnsiColors.xx());
         } else {
-            log.info("Kubernetes environment detected.");
+            log.info("{}Kubernetes{} environment detected.", AnsiColors.ye(), AnsiColors.xx());
         }
 
         List<CompletableFuture> futures = new ArrayList<>();
@@ -89,7 +90,7 @@ public class Entrypoint {
         try {
             log.info("Starting a simple HTTP server for exposing internal metrics..");
             httpServer = new HTTPServer(config.getMetricsPort());
-            log.info("metrics server listens on port {}", config.getMetricsPort());
+            log.info("{}metrics server{} listens on port {}", AnsiColors.ye(), AnsiColors.xx(), config.getMetricsPort());
             // todo: create also the service and for openshift also expose the service (?)
         } catch (IOException e) {
             log.error("Can't start metrics server because of: {} ", e.getMessage());
