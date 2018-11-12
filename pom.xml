@@ -15,7 +15,7 @@
     <scm>
         <url>https://github.com/jvm-operators/abstract-operator</url>
         <connection>scm:git:git@github.com:jvm-operators/abstract-operator.git</connection>
-        <developerConnection>scm:it:git@github.com:jvm-operators/abstract-operator.git</developerConnection>
+        <developerConnection>scm:git:git@github.com:jvm-operators/abstract-operator.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
 
