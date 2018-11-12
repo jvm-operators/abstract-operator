@@ -38,9 +38,20 @@ class FooOperator extends AbstractOperator[FooInfo] {
 By default the operator is based on `ConfigMaps`, if you want to create `CRD`-based operator, add `crd=true` parameter in the `@Operator` annotation. This will try to create the custom resource definition from the `infoClass` if it's not already there and then it listens on the newly created, deleted or modified custom resources (CR) of the given type.
 
 For the CRDs the:
-* `forKind` field represent the name of the `CRD` ('s' at the end for plular)
+* `forKind` field represent the name of the `CRD` ('s' at the end for plural)
 * `prefix` field in the annotation represents the group
 * as for the version, currently the `v1` is created automatically, but one can also create the `CRD` on his own before running the operator and providing the `forKind` and `prefix` matches, operator will use the existing `CRD`
+
+#### Configuration
+You can configure the operator using some environmental variables. Here is the list:
+* `WATCHED_NAMESPACE`, example values `myproject`, `foo,bar,baz`, `*` - what namespaces the operator should be watching for the events,
+default: same namespace where the operator is deployed
+* `CRD`, values `true/false` - config maps = `false`, custom resources = `true`, default: `false`
+* `COLORS`, values `true/false` - if `true` there will be colors used in the log file, default: `true`
+* `METRICS`, values `true/false` - whether start the simple http server that exposes internal metrics. These metrics are in the Prometheus compliant format and can be scraped by Prometheus; default: `false`
+* `METRICS_JVM`, values `true/false` - whether expose also internal JVM metrics such as heap usage, number of threads and similar; default: `false`
+* `METRICS_PORT`, example values `1337`; default: `8080`
+
 
 ## Documentation
 [javadoc](https://jvm-operators.github.io/abstract-operator/)
