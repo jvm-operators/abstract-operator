@@ -1,14 +1,14 @@
 package io.radanalytics.operator;
 
 import com.jcabi.manifests.Manifests;
-import com.sun.net.httpserver.HttpServer;
+import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.Watch;
+import io.fabric8.kubernetes.client.utils.HttpClientUtils;
 import io.prometheus.client.exporter.HTTPServer;
 import io.prometheus.client.hotspot.DefaultExports;
 import io.radanalytics.operator.common.AbstractOperator;
-import io.radanalytics.operator.common.Operator;
 import io.radanalytics.operator.common.OperatorConfig;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -24,18 +24,9 @@ import org.reflections.util.ConfigurationBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.net.URL;
-import java.security.SecureRandom;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -57,7 +48,6 @@ public class Entrypoint {
     public static void main(String[] args) {
         log.info("Starting..");
         OperatorConfig config = OperatorConfig.fromMap(System.getenv());
-//        KubernetesClient client = new DefaultKubernetesClient(getUnsafeOkHttpClient(), new ConfigBuilder().build());
         KubernetesClient client = new DefaultKubernetesClient();
         boolean isOpenshift = isOnOpenShift(client);
         CompletableFuture<Void> future = run(client, isOpenshift, config).exceptionally(ex -> {
@@ -66,7 +56,8 @@ public class Entrypoint {
             return null;
         });
         if (config.isMetrics()) {
-            future.thenCompose(s -> runMetrics(isOpenshift, config));
+            CompletableFuture<Optional<HTTPServer>> maybeMetricServer = future.thenCompose(s -> runMetrics(isOpenshift, config));
+            // todo: shutdown hook and top it if necessary
         }
     }
 
@@ -93,9 +84,12 @@ public class Entrypoint {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[]{}));
     }
 
-    private static CompletableFuture<Void> runMetrics(boolean isOpenShift, OperatorConfig config) {
+    private static CompletableFuture<Optional<HTTPServer>> runMetrics(boolean isOpenShift, OperatorConfig config) {
+        HTTPServer httpServer = null;
         try {
-            new HTTPServer(config.getMetricsPort());
+            log.info("Starting a simple HTTP server for exposing internal metrics..");
+            httpServer = new HTTPServer(config.getMetricsPort());
+            log.info("metrics server listens on port {}", config.getMetricsPort());
             // todo: create also the service and for openshift also expose the service (?)
         } catch (IOException e) {
             log.error("Can't start metrics server because of: {} ", e.getMessage());
@@ -104,6 +98,8 @@ public class Entrypoint {
         if (config.isMetricsJvm()) {
             DefaultExports.initialize();
         }
+        final Optional<HTTPServer> maybeServer = Optional.of(httpServer);
+        return CompletableFuture.supplyAsync(() -> maybeServer);
     }
 
     private static CompletableFuture<Void> runForNamespace(KubernetesClient client, boolean isOpenShift, String namespace) {
@@ -169,9 +165,9 @@ public class Entrypoint {
         if (kubernetesApi.getProtocol().equals("https")) {
             urlBuilder.scheme("https");
         }
-        urlBuilder.addPathSegment("/oapi");
+        urlBuilder.addPathSegment("oapi");
 
-        OkHttpClient httpClient = getOkHttpClient();
+        OkHttpClient httpClient = HttpClientUtils.createHttpClient(new ConfigBuilder().build());
         HttpUrl url = urlBuilder.build();
         Response response;
         try {
@@ -184,9 +180,9 @@ public class Entrypoint {
         }
         boolean success = response.isSuccessful();
         if (success) {
-            log.debug("{} returned {}. We are on OpenShift.", url, response.code());
+            log.info("{} returned {}. We are on OpenShift.", url, response.code());
         } else {
-            log.debug("{} returned {}. We are not on OpenShift. Assuming, we are on Kubernetes.", url, response.code());
+            log.info("{} returned {}. We are not on OpenShift. Assuming, we are on Kubernetes.", url, response.code());
         }
         return success;
     }
@@ -206,28 +202,5 @@ public class Entrypoint {
             log.info("Git sha: {}{}{}", ye(), gitSha, xx());
         }
         log.info("==================\n");
-    }
-
-    private static OkHttpClient getOkHttpClient() {
-        try {
-            // Create a trust manager that does not validate certificate chains
-            final X509TrustManager trustAllCerts = new X509TrustManager() {
-                public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {}
-                public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {}
-                public X509Certificate[] getAcceptedIssuers() {
-                    return new X509Certificate[]{};
-                }
-            };
-            final SSLContext sslContext = SSLContext.getInstance("SSL");
-            sslContext.init(null, new X509TrustManager[]{trustAllCerts}, new SecureRandom());
-            final SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
-            OkHttpClient.Builder builder = new OkHttpClient.Builder();
-            builder.sslSocketFactory(sslSocketFactory, trustAllCerts);
-            builder.hostnameVerifier((hostname, session) -> true);
-            OkHttpClient okHttpClient = builder.build();
-            return okHttpClient;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 }
