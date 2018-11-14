@@ -6,18 +6,17 @@ import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionBuilder;
 import io.fabric8.kubernetes.client.*;
-import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.dsl.Watchable;
+import io.fabric8.kubernetes.client.dsl.*;
 import io.radanalytics.operator.Entrypoint;
 import io.radanalytics.operator.resource.HasDataHelper;
 import io.radanalytics.operator.resource.LabelsHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -149,7 +148,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         return HasDataHelper.parseCM(infoClass, cm);
     }
 
-    protected T convertCrd(InfoClass info) {
+    protected T convertCr(InfoClass info) {
         String name = info.getMetadata().getName();
         ObjectMapper mapper = new ObjectMapper();
         T infoSpec = mapper.convertValue(info.getSpec(), infoClass);
@@ -337,7 +336,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                 @Override
                 public void eventReceived(Action action, InfoClass info) {
                     log.info("Custom resource \n{}\n in namespace {} was {}", info, namespace, action);
-                    T entity = convertCrd(info);
+                    T entity = convertCr(info);
                     if (entity == null) {
                         log.error("something went wrong, unable to parse {} definition", entityName);
                     }
@@ -368,6 +367,25 @@ public abstract class AbstractOperator<T extends EntityInfo> {
             return null;
         });
         return cf;
+    }
+
+    protected Set<T> getDesiredSet() {
+        Set<T> desiredSet;
+        if (isCrd) {
+            MixedOperation<InfoClass, InfoList, InfoClassDoneable, Resource<InfoClass, InfoClassDoneable>> aux1 =
+                    client.customResources(crd, InfoClass.class, InfoList.class, InfoClassDoneable.class);
+            FilterWatchListMultiDeletable<InfoClass, InfoList, Boolean, Watch, Watcher<InfoClass>> aux2 =
+                    "*".equals(namespace) ? aux1.inAnyNamespace() : aux1.inNamespace(namespace);
+            List<InfoClass> items = aux2.list().getItems();
+            desiredSet = items.stream().map(item -> convertCr(item)).collect(Collectors.toSet());
+        } else {
+            MixedOperation<ConfigMap, ConfigMapList, DoneableConfigMap, Resource<ConfigMap, DoneableConfigMap>> aux1 =
+                    client.configMaps();
+            FilterWatchListMultiDeletable<ConfigMap, ConfigMapList, Boolean, Watch, Watcher<ConfigMap>> aux2 =
+                    "*".equals(namespace) ? aux1.inAnyNamespace() : aux1.inNamespace(namespace);
+            desiredSet = aux2.list().getItems().stream().map(item -> convert(item)).collect(Collectors.toSet());
+        }
+        return desiredSet;
     }
 
     private void handleAction(Watcher.Action action, T entity) {
