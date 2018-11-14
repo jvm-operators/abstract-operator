@@ -115,6 +115,13 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     }
 
     /**
+     * Override this method to do a full reconciliation.
+     */
+    public void fullReconciliation() {
+        // no-op by default
+    }
+
+    /**
      * Implicitly only those configmaps with given prefix and kind are being watched, but you can provide additional
      * 'deep' checking in here.
      *

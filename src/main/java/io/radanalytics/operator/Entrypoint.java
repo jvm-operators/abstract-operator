@@ -28,12 +28,11 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URL;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
+import java.util.logging.Level;
 
 import static io.radanalytics.operator.common.AnsiColors.*;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * Entry point class that contains the main method and should bootstrap all the registered operators
@@ -60,6 +59,8 @@ public class Entrypoint {
             CompletableFuture<Optional<HTTPServer>> maybeMetricServer = future.thenCompose(s -> runMetrics(isOpenshift, config));
             // todo: shutdown hook and top it if necessary
         }
+
+        ((java.util.logging.Logger)LoggerFactory.getLogger(OkHttpClient.class.getName())).setLevel(Level.ALL);
     }
 
     private static CompletableFuture<Void> run(KubernetesClient client, boolean isOpenShift, OperatorConfig config) {
@@ -74,11 +75,11 @@ public class Entrypoint {
         List<CompletableFuture> futures = new ArrayList<>();
         if (null == config.getNamespaces()) { // get the current namespace
             String namespace = client.getNamespace();
-            CompletableFuture future = runForNamespace(client, isOpenShift, namespace);
+            CompletableFuture future = runForNamespace(client, isOpenShift, namespace, config.getReconciliationIntervalS());
             futures.add(future);
         } else {
             for (String namespace : config.getNamespaces()) {
-                CompletableFuture future = runForNamespace(client, isOpenShift, namespace);
+                CompletableFuture future = runForNamespace(client, isOpenShift, namespace, config.getReconciliationIntervalS());
                 futures.add(future);
             }
         }
@@ -103,7 +104,7 @@ public class Entrypoint {
         return CompletableFuture.supplyAsync(() -> maybeServer);
     }
 
-    private static CompletableFuture<Void> runForNamespace(KubernetesClient client, boolean isOpenShift, String namespace) {
+    private static CompletableFuture<Void> runForNamespace(KubernetesClient client, boolean isOpenShift, String namespace, long reconInterval) {
         List<ClassLoader> classLoadersList = new LinkedList<>();
         classLoadersList.add(ClasspathHelper.contextClassLoader());
         classLoadersList.add(ClasspathHelper.staticClassLoader());
@@ -144,7 +145,16 @@ public class Entrypoint {
                     System.exit(1);
                     return null;
                 });
+
+                ScheduledExecutorService s = Executors.newScheduledThreadPool(1);
+                int delay = new Random().nextInt(15);
+                ScheduledFuture<?> scheduledFuture =
+                        s.scheduleAtFixedRate(() -> operator.fullReconciliation(), delay, reconInterval, SECONDS);
+                log.info("full reconciliation scheduled (periodically each {} seconds)", reconInterval);
+                log.info("the first full reconciliation is happening in {} seconds", delay);
+
                 futures.add(future);
+//                futures.add(scheduledFuture);
             } catch (InstantiationException | IllegalAccessException e) {
                 e.printStackTrace();
             }
