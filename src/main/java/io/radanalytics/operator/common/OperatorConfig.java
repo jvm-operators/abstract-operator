@@ -19,20 +19,20 @@ public class OperatorConfig {
     public static final String METRICS = "METRICS";
     public static final String METRICS_JVM = "METRICS_JVM";
     public static final String METRICS_PORT = "METRICS_PORT";
-    public static final String OPERATOR_FULL_RECONCILIATION_INTERVAL_MS = "OPERATOR_FULL_RECONCILIATION_INTERVAL_MS";
+    public static final String FULL_RECONCILIATION_INTERVAL_S = "FULL_RECONCILIATION_INTERVAL_S";
     public static final String OPERATOR_OPERATION_TIMEOUT_MS = "OPERATOR_OPERATION_TIMEOUT_MS";
 
     public static final boolean DEFAULT_METRICS = false;
     public static final boolean DEFAULT_METRICS_JVM = false;
     public static final int DEFAULT_METRICS_PORT = 8080;
-    public static final long DEFAULT_FULL_RECONCILIATION_INTERVAL_MS = 120_000;
+    public static final long DEFAULT_FULL_RECONCILIATION_INTERVAL_S = 20;
     public static final long DEFAULT_OPERATION_TIMEOUT_MS = 60_000;
 
     private final Set<String> namespaces;
     private final boolean metrics;
     private final boolean metricsJvm;
     private final int metricsPort;
-    private final long reconciliationIntervalMs;
+    private final long reconciliationIntervalS;
     private final long operationTimeoutMs;
 
     /**
@@ -42,13 +42,13 @@ public class OperatorConfig {
      * @param metrics                     whether the metrics server for prometheus should be started
      * @param metricsJvm                  whether to expose the internal JVM metrics, like heap, # of threads, etc.
      * @param metricsPort                 on which port the metrics server should be listening
-     * @param reconciliationIntervalMs    specify every how many milliseconds the reconciliation runs
+     * @param reconciliationIntervalS     specify every how many milliseconds the reconciliation runs
      * @param operationTimeoutMs          timeout for internal operations specified in milliseconds
      */
     public OperatorConfig(Set<String> namespaces, boolean metrics, boolean metricsJvm, int metricsPort,
-                          long reconciliationIntervalMs, long operationTimeoutMs) {
+                          long reconciliationIntervalS, long operationTimeoutMs) {
         this.namespaces = namespaces;
-        this.reconciliationIntervalMs = reconciliationIntervalMs;
+        this.reconciliationIntervalS = reconciliationIntervalS;
         this.operationTimeoutMs = operationTimeoutMs;
         this.metrics = metrics;
         this.metricsJvm = metricsJvm;
@@ -90,8 +90,8 @@ public class OperatorConfig {
             }
         }
 
-        long reconciliationInterval = DEFAULT_FULL_RECONCILIATION_INTERVAL_MS;
-        String reconciliationIntervalEnvVar = map.get(OPERATOR_FULL_RECONCILIATION_INTERVAL_MS);
+        long reconciliationInterval = DEFAULT_FULL_RECONCILIATION_INTERVAL_S;
+        String reconciliationIntervalEnvVar = map.get(FULL_RECONCILIATION_INTERVAL_S);
         if (reconciliationIntervalEnvVar != null) {
             reconciliationInterval = Long.parseLong(reconciliationIntervalEnvVar);
         }
@@ -115,10 +115,10 @@ public class OperatorConfig {
     }
 
     /**
-     * @return  how many milliseconds the reconciliation runs
+     * @return  how many seconds among the reconciliation runs
      */
-    public long getReconciliationIntervalMs() {
-        return reconciliationIntervalMs;
+    public long getReconciliationIntervalS() {
+        return reconciliationIntervalS;
     }
 
     /**
@@ -147,7 +147,7 @@ public class OperatorConfig {
                 ", metrics=" + metrics +
                 ", metricsJvm=" + metricsJvm +
                 ", metricsPort=" + metricsPort +
-                ", reconciliationIntervalMs=" + reconciliationIntervalMs +
+                ", reconciliationIntervalS=" + reconciliationIntervalS +
                 ", operationTimeoutMs=" + operationTimeoutMs +
                 '}';
     }
