@@ -59,8 +59,6 @@ public class Entrypoint {
             CompletableFuture<Optional<HTTPServer>> maybeMetricServer = future.thenCompose(s -> runMetrics(isOpenshift, config));
             // todo: shutdown hook and top it if necessary
         }
-
-        ((java.util.logging.Logger)LoggerFactory.getLogger(OkHttpClient.class.getName())).setLevel(Level.ALL);
     }
 
     private static CompletableFuture<Void> run(KubernetesClient client, boolean isOpenShift, OperatorConfig config) {
