@@ -147,7 +147,13 @@ public class Entrypoint {
                 ScheduledExecutorService s = Executors.newScheduledThreadPool(1);
                 int delay = new Random().nextInt(15);
                 ScheduledFuture<?> scheduledFuture =
-                        s.scheduleAtFixedRate(() -> operator.fullReconciliation(), delay, reconInterval, SECONDS);
+                        s.scheduleAtFixedRate(() -> {
+                            try {
+                                operator.fullReconciliation();
+                            } catch (Throwable t) {
+                                log.warn("error during full reconciliation: {}", t.getCause());
+                            }
+                        }, delay, reconInterval, SECONDS);
                 log.info("full reconciliation scheduled (periodically each {} seconds)", reconInterval);
                 log.info("the first full reconciliation is happening in {} seconds", delay);
 
