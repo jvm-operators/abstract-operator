@@ -157,7 +157,8 @@ public class Entrypoint {
                                 operator.fullReconciliation();
                                 operator.setFullReconciliationRun(true);
                             } catch (Throwable t) {
-                                log.warn("error during full reconciliation: {}", t.getCause());
+                                log.warn("error during full reconciliation: {}", t.getMessage());
+                                t.printStackTrace();
                             }
                         }, realDelay, reconInterval, SECONDS);
                 log.info("full reconciliation for {} scheduled (periodically each {} seconds)", operator.getName(), reconInterval);

@@ -1,25 +1,30 @@
 package io.radanalytics.operator.common;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.fabric8.kubernetes.api.builder.Function;
-import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapList;
+import io.fabric8.kubernetes.api.model.DoneableConfigMap;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionBuilder;
 import io.fabric8.kubernetes.client.*;
-import io.fabric8.kubernetes.client.dsl.*;
+import io.fabric8.kubernetes.client.dsl.FilterWatchListMultiDeletable;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.dsl.Watchable;
+import io.fabric8.kubernetes.internal.KubernetesDeserializer;
 import io.radanalytics.operator.Entrypoint;
 import io.radanalytics.operator.resource.HasDataHelper;
 import io.radanalytics.operator.resource.LabelsHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static io.radanalytics.operator.common.AnsiColors.gr;
 import static io.radanalytics.operator.common.AnsiColors.xx;
@@ -259,6 +264,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
         // register the new crd for json serialization
         io.fabric8.kubernetes.internal.KubernetesDeserializer.registerCustomKind(newPrefix + "/" + crdToReturn.getSpec().getVersion() + "#" + this.entityName, InfoClass.class);
+        io.fabric8.kubernetes.internal.KubernetesDeserializer.registerCustomKind(newPrefix + "/" + crdToReturn.getSpec().getVersion() + "#" + this.entityName + "List", CustomResourceList.class);
 
         return crdToReturn;
     }
@@ -332,6 +338,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         }
     }
 
+    @JsonDeserialize(using = KubernetesDeserializer.class)
     public class InfoList<V> extends CustomResourceList<InfoClass<V>> {
     }
 
@@ -385,7 +392,8 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                     client.customResources(crd, InfoClass.class, InfoList.class, InfoClassDoneable.class);
             FilterWatchListMultiDeletable<InfoClass, InfoList, Boolean, Watch, Watcher<InfoClass>> aux2 =
                     "*".equals(namespace) ? aux1.inAnyNamespace() : aux1.inNamespace(namespace);
-            List<InfoClass> items = aux2.list().getItems();
+            CustomResourceList<InfoClass> listAux = aux2.list();
+            List<InfoClass> items = listAux.getItems();
             desiredSet = items.stream().map(item -> convertCr(item)).collect(Collectors.toSet());
         } else {
             MixedOperation<ConfigMap, ConfigMapList, DoneableConfigMap, Resource<ConfigMap, DoneableConfigMap>> aux1 =
