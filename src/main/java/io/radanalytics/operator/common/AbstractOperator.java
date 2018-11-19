@@ -51,6 +51,8 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     protected boolean enabled = true;
     protected String named;
 
+    protected volatile boolean fullReconciliationRun = false;
+
     private Map<String, String> selector;
     private String operatorName;
     private CustomResourceDefinition crd;
@@ -396,6 +398,9 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     }
 
     private void handleAction(Watcher.Action action, T entity) {
+        if (!fullReconciliationRun) {
+            return;
+        }
         String name = entity.getName();
         switch (action) {
             case ADDED:
@@ -465,5 +470,9 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
     public void setNamed(String named) {
         this.named = named;
+    }
+
+    public void setFullReconciliationRun(boolean fullReconciliationRun) {
+        this.fullReconciliationRun = fullReconciliationRun;
     }
 }

@@ -25,7 +25,7 @@ public class OperatorConfig {
     public static final boolean DEFAULT_METRICS = false;
     public static final boolean DEFAULT_METRICS_JVM = false;
     public static final int DEFAULT_METRICS_PORT = 8080;
-    public static final long DEFAULT_FULL_RECONCILIATION_INTERVAL_S = 20;
+    public static final long DEFAULT_FULL_RECONCILIATION_INTERVAL_S = 180;
     public static final long DEFAULT_OPERATION_TIMEOUT_MS = 60_000;
 
     private final Set<String> namespaces;

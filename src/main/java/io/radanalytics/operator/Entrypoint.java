@@ -30,6 +30,7 @@ import java.net.URL;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.logging.Level;
+import java.util.stream.IntStream;
 
 import static io.radanalytics.operator.common.AnsiColors.*;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -73,11 +74,13 @@ public class Entrypoint {
         List<CompletableFuture> futures = new ArrayList<>();
         if (null == config.getNamespaces()) { // get the current namespace
             String namespace = client.getNamespace();
-            CompletableFuture future = runForNamespace(client, isOpenShift, namespace, config.getReconciliationIntervalS());
+            CompletableFuture future = runForNamespace(client, isOpenShift, namespace, config.getReconciliationIntervalS(), 0);
             futures.add(future);
         } else {
-            for (String namespace : config.getNamespaces()) {
-                CompletableFuture future = runForNamespace(client, isOpenShift, namespace, config.getReconciliationIntervalS());
+            Iterator<String> ns;
+            int i;
+            for (ns = config.getNamespaces().iterator(), i = 0; i < config.getNamespaces().size(); i++) {
+                CompletableFuture future = runForNamespace(client, isOpenShift, ns.next(), config.getReconciliationIntervalS(), i);
                 futures.add(future);
             }
         }
@@ -102,31 +105,33 @@ public class Entrypoint {
         return CompletableFuture.supplyAsync(() -> maybeServer);
     }
 
-    private static CompletableFuture<Void> runForNamespace(KubernetesClient client, boolean isOpenShift, String namespace, long reconInterval) {
+    private static CompletableFuture<Void> runForNamespace(KubernetesClient client, boolean isOpenShift, String namespace, long reconInterval, int delay) {
         List<ClassLoader> classLoadersList = new LinkedList<>();
         classLoadersList.add(ClasspathHelper.contextClassLoader());
         classLoadersList.add(ClasspathHelper.staticClassLoader());
 
-        Set<Class<? extends AbstractOperator>> operatorClasses = null;
+        final List<Class<? extends AbstractOperator>> operatorClasses = new ArrayList<>();
         try {
             Reflections reflections = new Reflections(new ConfigurationBuilder()
                     .setScanners(new TypeAnnotationsScanner(), new SubTypesScanner(false), new ResourcesScanner())
                     .setUrls(ClasspathHelper.forClassLoader(classLoadersList.toArray(new ClassLoader[0]))));
-            operatorClasses = reflections.getSubTypesOf(AbstractOperator.class);
+            operatorClasses.addAll(reflections.getSubTypesOf(AbstractOperator.class));
         } catch (ReflectionsException re) {
             log.debug(re.getMessage());
             // np, swallow
         }
 
         List<Future> futures = new ArrayList<>();
-        operatorClasses.stream().forEach(operatorClass -> {
+        final int operatorNumber = operatorClasses.size();
+        IntStream.range(0, operatorNumber).forEach(operatorIndex -> {
+            final Class<? extends AbstractOperator> operatorClass = operatorClasses.get(operatorIndex);
             try {
                 if (!AbstractOperator.class.isAssignableFrom(operatorClass)) {
                     log.error("Class {} annotated with @Operator doesn't extend the AbstractOperator", operatorClass);
                     System.exit(1);
                 }
 
-                final AbstractOperator operator = ((Class<? extends AbstractOperator>)operatorClass).newInstance();
+                final AbstractOperator operator = operatorClass.newInstance();  
                 if (!operator.isEnabled()) {
                     log.info("Skipping initialization of {} operator", operatorClass);
                     return;
@@ -145,17 +150,18 @@ public class Entrypoint {
                 });
 
                 ScheduledExecutorService s = Executors.newScheduledThreadPool(1);
-                int delay = new Random().nextInt(15);
+                int realDelay = (delay * operatorNumber) + operatorIndex + 2;
                 ScheduledFuture<?> scheduledFuture =
                         s.scheduleAtFixedRate(() -> {
                             try {
                                 operator.fullReconciliation();
+                                operator.setFullReconciliationRun(true);
                             } catch (Throwable t) {
                                 log.warn("error during full reconciliation: {}", t.getCause());
                             }
-                        }, delay, reconInterval, SECONDS);
-                log.info("full reconciliation scheduled (periodically each {} seconds)", reconInterval);
-                log.info("the first full reconciliation is happening in {} seconds", delay);
+                        }, realDelay, reconInterval, SECONDS);
+                log.info("full reconciliation for {} scheduled (periodically each {} seconds)", operator.getName(), reconInterval);
+                log.info("the first full reconciliation is happening in {} seconds", realDelay);
 
                 futures.add(future);
 //                futures.add(scheduledFuture);
