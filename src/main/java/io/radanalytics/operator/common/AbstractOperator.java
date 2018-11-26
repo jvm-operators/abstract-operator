@@ -400,7 +400,11 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                     client.configMaps();
             FilterWatchListMultiDeletable<ConfigMap, ConfigMapList, Boolean, Watch, Watcher<ConfigMap>> aux2 =
                     "*".equals(namespace) ? aux1.inAnyNamespace() : aux1.inNamespace(namespace);
-            desiredSet = aux2.list().getItems().stream().map(item -> convert(item)).collect(Collectors.toSet());
+            desiredSet = aux2.withLabels(selector)
+                    .list()
+                    .getItems()
+                    .stream()
+                    .map(item -> convert(item)).collect(Collectors.toSet());
         }
         return desiredSet;
     }
