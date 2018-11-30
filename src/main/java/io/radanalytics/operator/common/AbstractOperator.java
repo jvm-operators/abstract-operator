@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.radanalytics.operator.common.AnsiColors.gr;
 import static io.radanalytics.operator.common.AnsiColors.xx;
@@ -394,7 +395,14 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                     "*".equals(namespace) ? aux1.inAnyNamespace() : aux1.inNamespace(namespace);
             CustomResourceList<InfoClass> listAux = aux2.list();
             List<InfoClass> items = listAux.getItems();
-            desiredSet = items.stream().map(item -> convertCr(item)).collect(Collectors.toSet());
+            desiredSet = items.stream().flatMap(item -> {
+                try {
+                    return Stream.of(convertCr(item));
+                } catch (Exception e) {
+                    // ignore this CR
+                    return Stream.empty();
+                }
+            }).collect(Collectors.toSet());
         } else {
             MixedOperation<ConfigMap, ConfigMapList, DoneableConfigMap, Resource<ConfigMap, DoneableConfigMap>> aux1 =
                     client.configMaps();
@@ -404,7 +412,14 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                     .list()
                     .getItems()
                     .stream()
-                    .map(item -> convert(item)).collect(Collectors.toSet());
+                    .flatMap(item -> {
+                        try {
+                            return Stream.of(convert(item));
+                        } catch (Exception e) {
+                            // ignore this CM
+                            return Stream.empty();
+                        }
+                    }).collect(Collectors.toSet());
         }
         return desiredSet;
     }
