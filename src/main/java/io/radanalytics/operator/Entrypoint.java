@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.logging.Level;
 import java.util.stream.IntStream;
 
 import static io.radanalytics.operator.common.AnsiColors.*;
@@ -37,8 +36,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * Entry point class that contains the main method and should bootstrap all the registered operators
- * that are present on the class path. It scans the class path for those classes that have the @Operator
- * annotations on them. Also the package name must start with io.
+ * that are present on the class path. It scans the class path for those classes that have the
+ * {@link io.radanalytics.operator.common.Operator} annotations on them or extends the {@link AbstractOperator}.
  */
 public class Entrypoint {
 
