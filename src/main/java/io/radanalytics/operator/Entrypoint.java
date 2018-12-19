@@ -212,8 +212,8 @@ public class Entrypoint {
         String gitSha = "unknown";
         String version = "unknown";
         try {
-            gitSha = Manifests.read("Implementation-Build");
             version = Entrypoint.class.getPackage().getImplementationVersion();
+            gitSha = Manifests.read("Implementation-Build");
         } catch (Exception e) {
             // ignore, not critical
         }
