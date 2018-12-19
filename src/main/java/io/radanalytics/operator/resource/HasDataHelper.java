@@ -8,6 +8,7 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.radanalytics.operator.common.EntityInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 import org.yaml.snakeyaml.error.YAMLException;
@@ -24,6 +25,8 @@ public class HasDataHelper {
     private static final Logger log = LoggerFactory.getLogger(HasDataHelper.class.getName());
 
     public static <T extends EntityInfo> T parseYaml(Class<T> clazz, String yamlDoc, String name) {
+
+        LoaderOptions options = new LoaderOptions();
         Yaml snake = new Yaml(new Constructor(clazz));
         T entity = null;
         try {
@@ -32,7 +35,7 @@ public class HasDataHelper {
             String msg = "Unable to parse yaml definition of configmap, check if you don't have typo: \n'\n" +
                     yamlDoc + "\n'\n";
             log.error(msg);
-            ex.printStackTrace();
+            throw new IllegalStateException(ex);
         }
         if (entity == null) {
             String msg = "Unable to parse yaml definition of configmap, check if you don't have typo: \n'\n" +
@@ -46,7 +49,7 @@ public class HasDataHelper {
                 e.printStackTrace();
             }
         }
-        if (entity.getName() == null) {
+        if (entity != null && entity.getName() == null) {
             entity.setName(name);
         }
         return entity;

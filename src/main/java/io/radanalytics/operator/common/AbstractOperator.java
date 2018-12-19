@@ -1,5 +1,6 @@
 package io.radanalytics.operator.common;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.fabric8.kubernetes.api.builder.Function;
@@ -8,6 +9,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapList;
 import io.fabric8.kubernetes.api.model.DoneableConfigMap;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionBuilder;
+import io.fabric8.kubernetes.api.model.apiextensions.JSONSchemaProps;
 import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListMultiDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -20,6 +22,9 @@ import io.radanalytics.operator.resource.LabelsHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,6 +33,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.radanalytics.operator.common.AnsiColors.gr;
+import static io.radanalytics.operator.common.AnsiColors.re;
 import static io.radanalytics.operator.common.AnsiColors.xx;
 
 /**
@@ -250,6 +256,22 @@ public abstract class AbstractOperator<T extends EntityInfo> {
             crdToReturn = crds.get(0);
         } else {
             final String plural = this.entityName + "s";
+            // todo: ugly, hide it somewhere
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            char[] chars = infoClass.getSimpleName().toCharArray();
+            chars[0] = Character.toLowerCase(chars[0]);
+            String url = "/schema/" + new String(chars) + ".json";
+            log.warn(url);
+            URL in = getClass().getResource(url);
+            JSONSchemaProps schema = null;
+            try {
+                schema = mapper.readValue(in, JSONSchemaProps.class);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+
             crdToReturn = new CustomResourceDefinitionBuilder()
                     .withApiVersion("apiextensions.k8s.io/v1beta1")
                     .withNewMetadata().withName(plural + "." + newPrefix)
@@ -258,8 +280,13 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                     .withGroup(newPrefix)
                     .withVersion("v1")
                     .withScope("Namespaced")
+                    .withNewValidation()
+                    .withNewOpenAPIV3SchemaLike(schema)
+                    .endOpenAPIV3Schema()
+                    .endValidation()
                     .endSpec()
                     .build();
+            log.warn("crd:\n\n" + crdToReturn.toString() + "\n\n");
             client.customResourceDefinitions().createOrReplace(crdToReturn);
         }
 
@@ -429,24 +456,29 @@ public abstract class AbstractOperator<T extends EntityInfo> {
             return;
         }
         String name = entity.getName();
-        switch (action) {
-            case ADDED:
-                log.info("{}creating{} {}:  \n{}\n", gr(), xx(), entityName, name);
-                onAdd(entity);
-                log.info("{} {} has been  {}created{}", entityName, name, gr(), xx());
-                break;
-            case DELETED:
-                log.info("{}deleting{} {}:  \n{}\n", gr(), xx(), entityName, name);
-                onDelete(entity);
-                log.info("{} {} has been  {}deleted{}", entityName, name, gr(), xx());
-                break;
-            case MODIFIED:
-                log.info("{}modifying{} {}:  \n{}\n", gr(), xx(), entityName, name);
-                onModify(entity);
-                log.info("{} {} has been  {}modified{}", entityName, name, gr(), xx());
-                break;
-            default:
-                log.error("Unknown action: {} in namespace {}", action, namespace);
+        try {
+            switch (action) {
+                case ADDED:
+                    log.info("{}creating{} {}:  \n{}\n", gr(), xx(), entityName, name);
+                    onAdd(entity);
+                    log.info("{} {} has been  {}created{}", entityName, name, gr(), xx());
+                    break;
+                case DELETED:
+                    log.info("{}deleting{} {}:  \n{}\n", gr(), xx(), entityName, name);
+                    onDelete(entity);
+                    log.info("{} {} has been  {}deleted{}", entityName, name, gr(), xx());
+                    break;
+                case MODIFIED:
+                    log.info("{}modifying{} {}:  \n{}\n", gr(), xx(), entityName, name);
+                    onModify(entity);
+                    log.info("{} {} has been  {}modified{}", entityName, name, gr(), xx());
+                    break;
+                default:
+                    log.error("Unknown action: {} in namespace {}", action, namespace);
+            }
+        } catch (Exception e) {
+            log.warn("{}Error{} when reacting on event, cause: {}", re(), xx(), e.getMessage());
+            e.printStackTrace();
         }
     }
 
