@@ -1,6 +1,5 @@
 package io.radanalytics.operator.common;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.fabric8.kubernetes.api.builder.Function;
@@ -9,6 +8,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapList;
 import io.fabric8.kubernetes.api.model.DoneableConfigMap;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionBuilder;
+import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionFluent;
 import io.fabric8.kubernetes.api.model.apiextensions.JSONSchemaProps;
 import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListMultiDeletable;
@@ -22,9 +22,6 @@ import io.radanalytics.operator.resource.LabelsHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,14 +29,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.radanalytics.operator.common.AnsiColors.gr;
-import static io.radanalytics.operator.common.AnsiColors.re;
-import static io.radanalytics.operator.common.AnsiColors.xx;
+import static io.radanalytics.operator.common.AnsiColors.*;
 
 /**
  * This abstract class represents the extension point of the abstract-operator library.
  * By extending this class and overriding the methods, you will be able to watch on the
- * configmaps or custom resources you are interested in and handle the life-cycle of your
+ * config maps or custom resources you are interested in and handle the life-cycle of your
  * objects accordingly.
  *
  * Don't forget to add the @Operator annotation of the children classes.
@@ -94,10 +89,28 @@ public abstract class AbstractOperator<T extends EntityInfo> {
      * Kubernetes cluster (using @see this.client), like replication controllers with pod specifications
      * and custom images and settings. But one can do arbitrary work here, like calling external APIs, etc.
      *
-     * @param entity      entity that represents the config map that has just been created.
+     * @param entity      entity that represents the config map (or CR) that has just been created.
      *                    The type of the entity is passed as a type parameter to this class.
      */
     abstract protected void onAdd(T entity);
+
+    /**
+     * Override this method if you want your operator to handle the case when it watches for the events in the all
+     * namespaces (<code>WATCHED_NAMESPACES="*"</code>).
+     *
+     *
+     * @param entity     entity that represents the config map (or CR) that has just been created.
+     *      *            The type of the entity is passed as a type parameter to this class.
+     * @param namespace  namespace in which the resources should be created.
+     */
+    protected void onAdd(T entity, String namespace) {
+        if ("*".equals(this.namespace)) {
+            throw new IllegalStateException("Make sure the onAdd(T entity, String namespace) method is overriden in the" +
+                    " concrete operator.");
+        } else {
+            onAdd(entity, this.namespace);
+        }
+    }
 
     /**
      * This method should handle the deletion of the resource that was represented by the config map or custom resource.
@@ -109,6 +122,25 @@ public abstract class AbstractOperator<T extends EntityInfo> {
      */
     abstract protected void onDelete(T entity);
 
+
+    /**
+     * Override this method if you want your operator to handle the case when it watches for the events in the all
+     * namespaces (<code>WATCHED_NAMESPACES="*"</code>).
+     *
+     *
+     * @param entity     entity that represents the config map (or CR) that has just been created.
+     *      *            The type of the entity is passed as a type parameter to this class.
+     * @param namespace  namespace in which the resources should be created.
+     */
+    protected void onDelete(T entity, String namespace) {
+        if ("*".equals(this.namespace)) {
+            throw new IllegalStateException("Make sure the onDelete(T entity, String namespace) method is overriden" +
+                    " in the concrete operator.");
+        } else {
+            onDelete(entity, this.namespace);
+        }
+    }
+
     /**
      * It's called when one modifies the configmap of type 'T' (that passes <code>isSupported</code> check) or custom resource.
      * If this method is not overriden, the implicit behavior is calling <code>onDelete</code> and <code>onAdd</code>.
@@ -119,6 +151,24 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     protected void onModify(T entity) {
         onDelete(entity);
         onAdd(entity);
+    }
+
+    /**
+     * Override this method if you want your operator to handle the case when it watches for the events in the all
+     * namespaces (<code>WATCHED_NAMESPACES="*"</code>).
+     *
+     *
+     * @param entity     entity that represents the config map (or CR) that has just been created.
+     *      *            The type of the entity is passed as a type parameter to this class.
+     * @param namespace  namespace in which the resources should be created.
+     */
+    protected void onModify(T entity, String namespace) {
+        if ("*".equals(this.namespace)) {
+            throw new IllegalStateException("Make sure the onModify(T entity, String namespace) method is overriden" +
+                    " in the concrete operator.");
+        } else {
+            onModify(entity, this.namespace);
+        }
     }
 
     /**
@@ -256,37 +306,22 @@ public abstract class AbstractOperator<T extends EntityInfo> {
             crdToReturn = crds.get(0);
         } else {
             final String plural = this.entityName + "s";
-            // todo: ugly, hide it somewhere
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-            char[] chars = infoClass.getSimpleName().toCharArray();
-            chars[0] = Character.toLowerCase(chars[0]);
-            String url = "/schema/" + new String(chars) + ".json";
-            log.warn(url);
-            URL in = getClass().getResource(url);
-            JSONSchemaProps schema = null;
-            try {
-                schema = mapper.readValue(in, JSONSchemaProps.class);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-
-            crdToReturn = new CustomResourceDefinitionBuilder()
+            JSONSchemaProps schema = JSONSchemaReader.readSchema(infoClass);
+            CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> builder = new CustomResourceDefinitionBuilder()
                     .withApiVersion("apiextensions.k8s.io/v1beta1")
                     .withNewMetadata().withName(plural + "." + newPrefix)
                     .endMetadata()
                     .withNewSpec().withNewNames().withKind(this.entityName).withPlural(plural).endNames()
                     .withGroup(newPrefix)
                     .withVersion("v1")
-                    .withScope("Namespaced")
-                    .withNewValidation()
-                    .withNewOpenAPIV3SchemaLike(schema)
-                    .endOpenAPIV3Schema()
-                    .endValidation()
-                    .endSpec()
-                    .build();
-            log.warn("crd:\n\n" + crdToReturn.toString() + "\n\n");
+                    .withScope("Namespaced");
+            if (schema != null) {
+                builder = builder.withNewValidation()
+                        .withNewOpenAPIV3SchemaLike(schema)
+                        .endOpenAPIV3Schema()
+                        .endValidation();
+            }
+            crdToReturn = builder.endSpec().build();
             client.customResourceDefinitions().createOrReplace(crdToReturn);
         }
 
@@ -413,6 +448,14 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         return cf;
     }
 
+    /**
+     * Call this method in the concrete operator to obtain the desired state of the system. This can be especially handy
+     * during the fullReconciliation. Rule of thumb is that if you are overriding <code>fullReconciliation</code>, you
+     * should also override this method and call it from <code>fullReconciliation()</code> to ensure that the real state
+     * is the same as the desired state.
+     *
+     * @return returns the set of 'T's that correspond to the CMs or CRs that have been created in the K8s
+     */
     protected Set<T> getDesiredSet() {
         Set<T> desiredSet;
         if (isCrd) {
