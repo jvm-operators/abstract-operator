@@ -1,4 +1,5 @@
 io.radanalytics.operator
 io.radanalytics.operator.common
+io.radanalytics.operator.common.crd
 io.radanalytics.operator.resource
 io.radanalytics.types
