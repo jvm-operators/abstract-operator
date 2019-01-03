@@ -80,7 +80,7 @@ public abstract class AbstractWatcher<T extends EntityInfo> {
                 @Override
                 public void eventReceived(Action action, ConfigMap cm) {
                     if (isSupported.test(cm)) {
-                        log.info("ConfigMap in namespace {} was {}\n\nCM:\n\n{}\n\n", namespace, action, cm);
+                        log.info("ConfigMap in namespace {} was {}\nCM:\n{}\n", namespace, action, cm);
                         T entity = convert.apply(cm);
                         if (entity == null) {
                             log.error("something went wrong, unable to parse {} definition", entityName);
@@ -127,7 +127,7 @@ public abstract class AbstractWatcher<T extends EntityInfo> {
             Watch watch = watchable.watch(new Watcher<InfoClass>() {
                 @Override
                 public void eventReceived(Action action, InfoClass info) {
-                    log.info("Custom resource \n{}\n in namespace {} was {}", info, namespace, action);
+                    log.info("Custom resource in namespace {} was {}\nCR:\n", namespace, action, info);
                     T entity = convertCr.apply(info);
                     if (entity == null) {
                         log.error("something went wrong, unable to parse {} definition", entityName);
