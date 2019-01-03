@@ -112,7 +112,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
             throw new IllegalStateException("Make sure the onAdd(T entity, String namespace) method is overriden in the" +
                     " concrete operator.");
         } else {
-            onAdd(entity, this.namespace);
+            onAdd(entity);
         }
     }
 
@@ -141,7 +141,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
             throw new IllegalStateException("Make sure the onDelete(T entity, String namespace) method is overriden" +
                     " in the concrete operator.");
         } else {
-            onDelete(entity, this.namespace);
+            onDelete(entity);
         }
     }
 
@@ -171,7 +171,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
             throw new IllegalStateException("Make sure the onModify(T entity, String namespace) method is overriden" +
                     " in the concrete operator.");
         } else {
-            onModify(entity, this.namespace);
+            onModify(entity);
         }
     }
 
@@ -453,5 +453,6 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
     public void setFullReconciliationRun(boolean fullReconciliationRun) {
         this.fullReconciliationRun = fullReconciliationRun;
+        this.watch.setFullReconciliationRun(true);
     }
 }

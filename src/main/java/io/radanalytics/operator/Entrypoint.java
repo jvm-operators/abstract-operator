@@ -161,7 +161,7 @@ public class Entrypoint {
                             }
                         }, realDelay, reconInterval, SECONDS);
                 log.info("full reconciliation for {} scheduled (periodically each {} seconds)", operator.getName(), reconInterval);
-                log.info("the first full reconciliation is happening in {} seconds", realDelay);
+                log.info("the first full reconciliation for {} is happening in {} seconds", operator.getName(), realDelay);
 
                 futures.add(future);
 //                futures.add(scheduledFuture);

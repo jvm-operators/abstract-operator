@@ -80,7 +80,7 @@ public abstract class AbstractWatcher<T extends EntityInfo> {
                 @Override
                 public void eventReceived(Action action, ConfigMap cm) {
                     if (isSupported.test(cm)) {
-                        log.info("ConfigMap \n{}\n in namespace {} was {}", cm, namespace, action);
+                        log.info("ConfigMap in namespace {} was {}\n\nCM:\n\n{}\n\n", namespace, action, cm);
                         T entity = convert.apply(cm);
                         if (entity == null) {
                             log.error("something went wrong, unable to parse {} definition", entityName);
