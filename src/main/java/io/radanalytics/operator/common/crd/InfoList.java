@@ -1,15 +1,9 @@
 package io.radanalytics.operator.common.crd;
 
-import io.fabric8.kubernetes.client.CustomResource;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.fabric8.kubernetes.client.CustomResourceList;
+import io.fabric8.kubernetes.internal.KubernetesDeserializer;
 
-public class InfoClass<U> extends CustomResource {
-    private U spec;
-
-    public U getSpec() {
-        return spec;
-    }
-
-    public void setSpec(U spec) {
-        this.spec = spec;
-    }
+@JsonDeserialize(using = KubernetesDeserializer.class)
+public class InfoList<V> extends CustomResourceList<InfoClass<V>> {
 }

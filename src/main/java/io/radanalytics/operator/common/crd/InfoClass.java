@@ -1,4 +1,4 @@
-package io.radanalytics.operator.common;
+package io.radanalytics.operator.common.crd;
 
 import io.fabric8.kubernetes.client.CustomResource;
 
