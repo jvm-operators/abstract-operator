@@ -7,6 +7,7 @@ package io.radanalytics.operator.common;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 
@@ -69,6 +70,9 @@ public class OperatorConfig {
             namespaces = null; //Collections.singleton("*");
         } else {
             namespaces = new HashSet<>(asList(namespacesList.trim().split("\\s*,+\\s*")));
+            namespaces = namespaces.stream().map(
+                    ns -> ns.startsWith("\"") && ns.endsWith("\"") ? ns.substring(1, ns.length() - 1) : ns)
+                    .collect(Collectors.toSet());
         }
 
         boolean metricsAux = DEFAULT_METRICS;
