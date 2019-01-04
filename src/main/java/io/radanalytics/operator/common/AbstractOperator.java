@@ -7,13 +7,11 @@ import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionFluent;
 import io.fabric8.kubernetes.api.model.apiextensions.JSONSchemaProps;
-import io.fabric8.kubernetes.client.CustomResourceList;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.Watch;
-import io.fabric8.kubernetes.client.Watcher;
+import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListMultiDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.radanalytics.operator.common.crd.CrdDeployer;
 import io.radanalytics.operator.common.crd.InfoClass;
 import io.radanalytics.operator.common.crd.InfoClassDoneable;
 import io.radanalytics.operator.common.crd.InfoList;
@@ -241,7 +239,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         log.info("Starting {} for namespace {}", operatorName, namespace);
 
         if (isCrd) {
-            this.crd = initCrds();
+            this.crd = CrdDeployer.initCrds(client, prefix, entityName, infoClass, isOpenshift);
         }
 
         // onInit() can be overriden in child operators
@@ -304,46 +302,6 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         prefix = prefix == null || prefix.isEmpty() ? getClass().getPackage().getName() : prefix;
         prefix = prefix + (!prefix.endsWith("/") ? "/" : "");
         operatorName = "'" + entityName + "' operator";
-    }
-
-    private CustomResourceDefinition initCrds() {
-        final String newPrefix = prefix.substring(0, prefix.length() - 1);
-        CustomResourceDefinition crdToReturn;
-
-        List<CustomResourceDefinition> crds = client.customResourceDefinitions()
-                .list()
-                .getItems()
-                .stream()
-                .filter(p -> this.entityName.equals(p.getSpec().getNames().getKind()))
-                .collect(Collectors.toList());
-        if (!crds.isEmpty()) {
-            crdToReturn = crds.get(0);
-        } else {
-            final String plural = this.entityName + "s";
-            JSONSchemaProps schema = JSONSchemaReader.readSchema(infoClass);
-            CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> builder = new CustomResourceDefinitionBuilder()
-                    .withApiVersion("apiextensions.k8s.io/v1beta1")
-                    .withNewMetadata().withName(plural + "." + newPrefix)
-                    .endMetadata()
-                    .withNewSpec().withNewNames().withKind(this.entityName).withPlural(plural).endNames()
-                    .withGroup(newPrefix)
-                    .withVersion("v1")
-                    .withScope("Namespaced");
-            if (schema != null) {
-                builder = builder.withNewValidation()
-                        .withNewOpenAPIV3SchemaLike(schema)
-                        .endOpenAPIV3Schema()
-                        .endValidation();
-            }
-            crdToReturn = builder.endSpec().build();
-            client.customResourceDefinitions().createOrReplace(crdToReturn);
-        }
-
-        // register the new crd for json serialization
-        io.fabric8.kubernetes.internal.KubernetesDeserializer.registerCustomKind(newPrefix + "/" + crdToReturn.getSpec().getVersion() + "#" + this.entityName, InfoClass.class);
-        io.fabric8.kubernetes.internal.KubernetesDeserializer.registerCustomKind(newPrefix + "/" + crdToReturn.getSpec().getVersion() + "#" + this.entityName + "List", CustomResourceList.class);
-
-        return crdToReturn;
     }
 
     public void stop() {
