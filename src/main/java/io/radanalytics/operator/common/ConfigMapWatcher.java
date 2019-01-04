@@ -3,6 +3,7 @@ package io.radanalytics.operator.common;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.radanalytics.operator.resource.HasDataHelper;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -85,6 +86,10 @@ public class ConfigMapWatcher<T extends EntityInfo> extends AbstractWatcher<T> {
         public ConfigMapWatcher build() {
             return new ConfigMapWatcher(namespace, entityName, client, selector, onAdd, onDelete, onModify, predicate, convert);
         }
+    }
+
+    public static <T extends EntityInfo> T defaultConvert(Class<T> clazz, ConfigMap cm) {
+        return HasDataHelper.parseCM(clazz, cm);
     }
 
     @Override

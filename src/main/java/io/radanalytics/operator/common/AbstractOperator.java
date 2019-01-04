@@ -1,27 +1,22 @@
 package io.radanalytics.operator.common;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import io.fabric8.kubernetes.api.builder.Function;
 import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMapList;
 import io.fabric8.kubernetes.api.model.DoneableConfigMap;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionFluent;
 import io.fabric8.kubernetes.api.model.apiextensions.JSONSchemaProps;
-import io.fabric8.kubernetes.client.*;
+import io.fabric8.kubernetes.client.CustomResourceList;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.Watch;
+import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListMultiDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.dsl.Watchable;
-import io.fabric8.kubernetes.internal.KubernetesDeserializer;
-import io.radanalytics.operator.Entrypoint;
 import io.radanalytics.operator.common.crd.InfoClass;
 import io.radanalytics.operator.common.crd.InfoClassDoneable;
 import io.radanalytics.operator.common.crd.InfoList;
-import io.radanalytics.operator.resource.HasDataHelper;
 import io.radanalytics.operator.resource.LabelsHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,10 +25,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static io.radanalytics.operator.common.AnsiColors.*;
 
 /**
  * This abstract class represents the extension point of the abstract-operator library.
@@ -99,7 +93,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     abstract protected void onAdd(T entity);
 
     /**
-     * Override this method if you want your operator to handle the case when it watches for the events in the all
+     * Override this method if you want to manually handle the case when it watches for the events in the all
      * namespaces (<code>WATCHED_NAMESPACES="*"</code>).
      *
      *
@@ -108,12 +102,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
      * @param namespace  namespace in which the resources should be created.
      */
     protected void onAdd(T entity, String namespace) {
-        if ("*".equals(this.namespace)) {
-            throw new IllegalStateException("Make sure the onAdd(T entity, String namespace) method is overriden in the" +
-                    " concrete operator.");
-        } else {
-            onAdd(entity);
-        }
+        onAction(entity, namespace, this::onAdd);
     }
 
     /**
@@ -128,7 +117,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
 
     /**
-     * Override this method if you want your operator to handle the case when it watches for the events in the all
+     * Override this method if you want to manually handle the case when it watches for the events in the all
      * namespaces (<code>WATCHED_NAMESPACES="*"</code>).
      *
      *
@@ -137,12 +126,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
      * @param namespace  namespace in which the resources should be created.
      */
     protected void onDelete(T entity, String namespace) {
-        if ("*".equals(this.namespace)) {
-            throw new IllegalStateException("Make sure the onDelete(T entity, String namespace) method is overriden" +
-                    " in the concrete operator.");
-        } else {
-            onDelete(entity);
-        }
+        onAction(entity, namespace, this::onDelete);
     }
 
     /**
@@ -158,7 +142,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     }
 
     /**
-     * Override this method if you want your operator to handle the case when it watches for the events in the all
+     * Override this method if you want to manually handle the case when it watches for the events in the all
      * namespaces (<code>WATCHED_NAMESPACES="*"</code>).
      *
      *
@@ -167,11 +151,21 @@ public abstract class AbstractOperator<T extends EntityInfo> {
      * @param namespace  namespace in which the resources should be created.
      */
     protected void onModify(T entity, String namespace) {
+        onAction(entity, namespace, this::onModify);
+    }
+
+    private void onAction(T entity, String namespace, Consumer<T> handler) {
         if ("*".equals(this.namespace)) {
-            throw new IllegalStateException("Make sure the onModify(T entity, String namespace) method is overriden" +
-                    " in the concrete operator.");
+            //synchronized (this.watch) { // events from the watch should be serialized (1 thread)
+            try {
+                this.namespace = namespace;
+                handler.accept(entity);
+            } finally {
+                this.namespace = "*";
+            }
+            //}
         } else {
-            onModify(entity);
+            handler.accept(entity);
         }
     }
 
@@ -220,26 +214,11 @@ public abstract class AbstractOperator<T extends EntityInfo> {
      * @return entity of type T
      */
     protected T convert(ConfigMap cm) {
-        return HasDataHelper.parseCM(infoClass, cm);
+        return ConfigMapWatcher.defaultConvert(infoClass, cm);
     }
 
     protected T convertCr(InfoClass info) {
-        String name = info.getMetadata().getName();
-        ObjectMapper mapper = new ObjectMapper();
-        T infoSpec = mapper.convertValue(info.getSpec(), infoClass);
-        if (infoSpec == null) { // empty spec
-            try {
-                infoSpec = infoClass.newInstance();
-            } catch (InstantiationException e) {
-                e.printStackTrace();
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-            }
-        }
-        if (infoSpec.getName() == null) {
-            infoSpec.setName(name);
-        }
-        return infoSpec;
+        return CustomResourceWatcher.defaultConvert(infoClass, info);
     }
 
     public String getName() {
@@ -268,6 +247,19 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         // onInit() can be overriden in child operators
         onInit();
 
+        CompletableFuture<? extends AbstractWatcher<T>> future = initializeWatcher();
+        future.thenApply(res -> {
+                this.watch = res;
+                log.info("{}{} running{} for namespace {}", AnsiColors.gr(), operatorName, AnsiColors.xx(), namespace);
+                return res;
+        }).exceptionally(e -> {
+            log.error("{} startup failed for namespace {}", operatorName, namespace, e.getCause());
+            return null;
+        });
+        return future;
+    }
+
+    private CompletableFuture<? extends AbstractWatcher<T>> initializeWatcher() {
         CompletableFuture<? extends AbstractWatcher<T>> future;
         if (isCrd) {
             CustomResourceWatcher.Builder<T> crBuilder = new CustomResourceWatcher.Builder<>();
@@ -295,15 +287,6 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                     .build();
             future = cmWatcher.watch();
         }
-
-        future.thenApply(res -> {
-                this.watch = res;
-                log.info("{}{} running{} for namespace {}", AnsiColors.gr(), operatorName, AnsiColors.xx(), namespace);
-                return res;
-        }).exceptionally(e -> {
-            log.error("{} startup failed for namespace {}", operatorName, namespace, e.getCause());
-            return null;
-        });
         return future;
     }
 

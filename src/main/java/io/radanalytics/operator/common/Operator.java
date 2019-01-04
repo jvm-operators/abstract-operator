@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Operator {
     Class<? extends EntityInfo> forKind();
-    String named() default "";;
+    String named() default "";
     String prefix() default "";
     boolean enabled() default true;
     boolean crd() default false;

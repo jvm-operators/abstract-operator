@@ -1,5 +1,6 @@
 package io.radanalytics.operator.common;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.radanalytics.operator.common.crd.InfoClass;
@@ -76,6 +77,25 @@ public class CustomResourceWatcher<T extends EntityInfo> extends AbstractWatcher
         public CustomResourceWatcher build() {
             return new CustomResourceWatcher(namespace, entityName, client, crd, onAdd, onDelete, onModify, convert);
         }
+    }
+
+    public static <T extends EntityInfo> T defaultConvert(Class<T> clazz, InfoClass info) {
+        String name = info.getMetadata().getName();
+        ObjectMapper mapper = new ObjectMapper();
+        T infoSpec = mapper.convertValue(info.getSpec(), clazz);
+        if (infoSpec == null) { // empty spec
+            try {
+                infoSpec = clazz.newInstance();
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+        }
+        if (infoSpec.getName() == null) {
+            infoSpec.setName(name);
+        }
+        return infoSpec;
     }
 
     @Override

@@ -1,15 +1,16 @@
 package io.radanalytics.operator.common;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapList;
 import io.fabric8.kubernetes.api.model.DoneableConfigMap;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
-import io.fabric8.kubernetes.client.*;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.Watch;
+import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.Watchable;
-import io.fabric8.kubernetes.internal.KubernetesDeserializer;
 import io.radanalytics.operator.Entrypoint;
 import io.radanalytics.operator.common.crd.InfoClass;
 import io.radanalytics.operator.common.crd.InfoClassDoneable;
@@ -23,9 +24,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import static io.radanalytics.operator.common.AnsiColors.gr;
-import static io.radanalytics.operator.common.AnsiColors.re;
-import static io.radanalytics.operator.common.AnsiColors.xx;
+import static io.radanalytics.operator.common.AnsiColors.*;
 
 public abstract class AbstractWatcher<T extends EntityInfo> {
 
@@ -163,6 +162,7 @@ public abstract class AbstractWatcher<T extends EntityInfo> {
     }
 
     private void recreateWatcher() {
+        this.watch.close();
         CompletableFuture<Watch> configMapWatch = isCrd ? createCustomResourceWatch(): createConfigMapWatch();
         final String crdOrCm = isCrd ? "CustomResource" : "ConfigMap";
         configMapWatch.thenApply(res -> {
