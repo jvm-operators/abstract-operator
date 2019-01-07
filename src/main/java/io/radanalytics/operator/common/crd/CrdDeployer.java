@@ -36,24 +36,17 @@ public class CrdDeployer {
         if (!crds.isEmpty()) {
             crdToReturn = crds.get(0);
         } else {
-            final String plural = entityName + "s";
+
             JSONSchemaProps schema = JSONSchemaReader.readSchema(infoClass);
             CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> builder;
-            CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> builderWithoutSchema = new CustomResourceDefinitionBuilder()
-                    .withApiVersion("apiextensions.k8s.io/v1beta1")
-                    .withNewMetadata().withName(plural + "." + newPrefix)
-                    .endMetadata()
-                    .withNewSpec().withNewNames().withKind(entityName).withPlural(plural).endNames()
-                    .withGroup(newPrefix)
-                    .withVersion("v1")
-                    .withScope("Namespaced");
+
             if (schema != null) {
-                builder = builderWithoutSchema.withNewValidation()
+                builder = getCRDBuilder(newPrefix, entityName).withNewValidation()
                         .withNewOpenAPIV3SchemaLike(schema)
                         .endOpenAPIV3Schema()
                         .endValidation();
             } else {
-                builder = builderWithoutSchema;
+                builder = getCRDBuilder(newPrefix, entityName);
             }
             crdToReturn = builder.endSpec().build();
             try {
@@ -62,7 +55,7 @@ public class CrdDeployer {
                 // old version of K8s/openshift -> don't use schema validation
                 log.warn("Consider upgrading the {}. Your version doesn't support schema validation for custom resources."
                         , isOpenshift ? "OpenShift" : "Kubernetes");
-                crdToReturn = builderWithoutSchema.endSpec().build();
+                crdToReturn = getCRDBuilder(newPrefix, entityName).endSpec().build();
                 client.customResourceDefinitions().createOrReplace(crdToReturn);
             }
         }
@@ -72,5 +65,17 @@ public class CrdDeployer {
         io.fabric8.kubernetes.internal.KubernetesDeserializer.registerCustomKind(newPrefix + "/" + crdToReturn.getSpec().getVersion() + "#" + entityName + "List", CustomResourceList.class);
 
         return crdToReturn;
+    }
+
+    private static CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> getCRDBuilder(String prefix, String entityName) {
+        final String plural = entityName + "s";
+        return new CustomResourceDefinitionBuilder()
+                .withApiVersion("apiextensions.k8s.io/v1beta1")
+                .withNewMetadata().withName(plural + "." + prefix)
+                .endMetadata()
+                .withNewSpec().withNewNames().withKind(entityName).withPlural(plural).endNames()
+                .withGroup(prefix)
+                .withVersion("v1")
+                .withScope("Namespaced");
     }
 }
