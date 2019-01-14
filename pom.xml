@@ -2,7 +2,7 @@
     <parent>
         <groupId>io.radanalytics</groupId>
         <artifactId>operator-parent-pom</artifactId>
-        <version>0.3.10</version>
+        <version>0.3.11</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.radanalytics</groupId>
@@ -47,6 +47,10 @@
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>simpleclient_hotspot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>simpleclient_log4j</artifactId>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
