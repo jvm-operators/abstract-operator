@@ -6,8 +6,10 @@ import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.Watch;
 import io.fabric8.kubernetes.client.utils.HttpClientUtils;
+import io.prometheus.client.Gauge;
 import io.prometheus.client.exporter.HTTPServer;
 import io.prometheus.client.hotspot.DefaultExports;
+import io.prometheus.client.log4j.InstrumentedAppender;
 import io.radanalytics.operator.common.AbstractOperator;
 import io.radanalytics.operator.common.AnsiColors;
 import io.radanalytics.operator.common.OperatorConfig;
@@ -45,23 +47,25 @@ public class Entrypoint {
 
     public static ExecutorService EXECUTORS = Executors.newFixedThreadPool(10);
 
+    private static OperatorConfig config;
+    private static KubernetesClient client;
+
     public static void main(String[] args) {
         log.info("Starting..");
-        OperatorConfig config = OperatorConfig.fromMap(System.getenv());
-        KubernetesClient client = new DefaultKubernetesClient();
-        boolean isOpenshift = isOnOpenShift(client);
-        CompletableFuture<Void> future = run(client, isOpenshift, config).exceptionally(ex -> {
+        config = OperatorConfig.fromMap(System.getenv());
+        client = new DefaultKubernetesClient();
+        boolean isOpenshift = isOnOpenShift();
+        CompletableFuture<Void> future = run(isOpenshift).exceptionally(ex -> {
             log.error("Unable to start operator for one or more namespaces", ex);
             System.exit(1);
             return null;
         });
         if (config.isMetrics()) {
-            CompletableFuture<Optional<HTTPServer>> maybeMetricServer = future.thenCompose(s -> runMetrics(isOpenshift, config));
-            // todo: shutdown hook and top it if necessary
+            CompletableFuture<Optional<HTTPServer>> maybeMetricServer = future.thenCompose(s -> runMetrics(isOpenshift));
         }
     }
 
-    private static CompletableFuture<Void> run(KubernetesClient client, boolean isOpenShift, OperatorConfig config) {
+    private static CompletableFuture<Void> run(boolean isOpenShift) {
         printInfo();
 
         if (isOpenShift) {
@@ -73,20 +77,20 @@ public class Entrypoint {
         List<CompletableFuture> futures = new ArrayList<>();
         if (null == config.getNamespaces()) { // get the current namespace
             String namespace = client.getNamespace();
-            CompletableFuture future = runForNamespace(client, isOpenShift, namespace, config.getReconciliationIntervalS(), 0);
+            CompletableFuture future = runForNamespace(isOpenShift, namespace, config.getReconciliationIntervalS(), 0);
             futures.add(future);
         } else {
             Iterator<String> ns;
             int i;
             for (ns = config.getNamespaces().iterator(), i = 0; i < config.getNamespaces().size(); i++) {
-                CompletableFuture future = runForNamespace(client, isOpenShift, ns.next(), config.getReconciliationIntervalS(), i);
+                CompletableFuture future = runForNamespace(isOpenShift, ns.next(), config.getReconciliationIntervalS(), i);
                 futures.add(future);
             }
         }
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[]{}));
     }
 
-    private static CompletableFuture<Optional<HTTPServer>> runMetrics(boolean isOpenShift, OperatorConfig config) {
+    private static CompletableFuture<Optional<HTTPServer>> runMetrics(boolean isOpenShift) {
         HTTPServer httpServer = null;
         try {
             log.info("Starting a simple HTTP server for exposing internal metrics..");
@@ -104,7 +108,7 @@ public class Entrypoint {
         return CompletableFuture.supplyAsync(() -> maybeServer);
     }
 
-    private static CompletableFuture<Void> runForNamespace(KubernetesClient client, boolean isOpenShift, String namespace, long reconInterval, int delay) {
+    private static CompletableFuture<Void> runForNamespace(boolean isOpenShift, String namespace, long reconInterval, int delay) {
         List<ClassLoader> classLoadersList = new LinkedList<>();
         classLoadersList.add(ClasspathHelper.contextClassLoader());
         classLoadersList.add(ClasspathHelper.staticClassLoader());
@@ -172,7 +176,7 @@ public class Entrypoint {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[]{}));
     }
 
-    private static boolean isOnOpenShift(KubernetesClient client) {
+    private static boolean isOnOpenShift() {
         URL kubernetesApi = client.getMasterUrl();
 
         HttpUrl.Builder urlBuilder = new HttpUrl.Builder();
@@ -217,11 +221,56 @@ public class Entrypoint {
         } catch (Exception e) {
             // ignore, not critical
         }
+
+        if(config.isMetrics()) {
+            registerMetrics(gitSha, version);
+        }
+
         log.info("\n{}Operator{} has started in version {}{}{}. {}\n", re(), xx(), gr(),
                 version, xx(), FOO);
         if (!gitSha.isEmpty()) {
             log.info("Git sha: {}{}{}", ye(), gitSha, xx());
         }
         log.info("==================\n");
+    }
+
+    private static void registerMetrics(String gitSha, String version) {
+        List<String> labels = new ArrayList<>();
+        List<String> values = new ArrayList<>();
+
+        labels.addAll(Arrays.asList("gitSha", "version",
+                "CRD",
+                "COLORS",
+                OperatorConfig.WATCHED_NAMESPACE,
+                OperatorConfig.METRICS,
+                OperatorConfig.METRICS_JVM,
+                OperatorConfig.METRICS_PORT,
+                OperatorConfig.FULL_RECONCILIATION_INTERVAL_S,
+                OperatorConfig.OPERATOR_OPERATION_TIMEOUT_MS
+        ));
+        values.addAll(Arrays.asList(gitSha, version,
+                Optional.ofNullable(System.getenv().get("CRD")).orElse("false"),
+                Optional.ofNullable(System.getenv().get("COLORS")).orElse("true"),
+                null == config.getNamespaces() ? client.getNamespace() : config.getNamespaces().toString(),
+                String.valueOf(config.isMetrics()),
+                String.valueOf(config.isMetricsJvm()),
+                String.valueOf(config.getMetricsPort()),
+                String.valueOf(config.getReconciliationIntervalS()),
+                String.valueOf(config.getOperationTimeoutMs())
+        ));
+
+        Gauge.build()
+                .name("operator_info")
+                .help("Basic information about the abstract operator library.")
+                .labelNames(labels.toArray(new String[]{}))
+                .register()
+                .labels(values.toArray(new String[]{}))
+                .set(1);
+
+        // add log appender for metrics
+        final org.apache.log4j.Logger rootLogger = org.apache.log4j.Logger.getRootLogger();
+        InstrumentedAppender metricsLogAppender = new InstrumentedAppender();
+        metricsLogAppender.setName("metrics");
+        rootLogger.addAppender(metricsLogAppender);
     }
 }
