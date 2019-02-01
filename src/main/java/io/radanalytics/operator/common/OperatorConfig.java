@@ -16,7 +16,7 @@ import static java.util.Arrays.asList;
  */
 public class OperatorConfig {
 
-    public static final String WATCHED_NAMESPACE = "WATCHED_NAMESPACE";
+    public static final String WATCH_NAMESPACE = "WATCH_NAMESPACE";
     public static final String METRICS = "METRICS";
     public static final String METRICS_JVM = "METRICS_JVM";
     public static final String METRICS_PORT = "METRICS_PORT";
@@ -64,7 +64,14 @@ public class OperatorConfig {
      */
     public static OperatorConfig fromMap(Map<String, String> map) {
 
-        String namespacesList = map.get(WATCHED_NAMESPACE);
+        String namespacesList = map.get(WATCH_NAMESPACE);
+
+        // todo: remove me in the future versions, "WATCHED_NAMESPACE" has been deprecated but let's support it
+        // for a couple of versions. Not to break the clients.
+        if (namespacesList == null) {
+            namespacesList = map.get("WATCHED_NAMESPACE");
+        }
+
         Set<String> namespaces;
         if (namespacesList == null || namespacesList.isEmpty()) {
             namespaces = null; //Collections.singleton("*");

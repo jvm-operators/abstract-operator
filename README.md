@@ -47,7 +47,7 @@ For the CRDs the:
 
 #### Configuration
 You can configure the operator using some environmental variables. Here is the list:
-* `WATCHED_NAMESPACE`, example values `myproject`, `foo,bar,baz`, `*` - what namespaces the operator should be watching for the events,
+* `WATCH_NAMESPACE`, example values `myproject`, `foo,bar,baz`, `*` - what namespaces the operator should be watching for the events,
 default: same namespace where the operator is deployed
 * `CRD`, values `true/false` - config maps = `false`, custom resources = `true`, default: `false`
 * `COLORS`, values `true/false` - if `true` there will be colors used in the log file, default: `true`

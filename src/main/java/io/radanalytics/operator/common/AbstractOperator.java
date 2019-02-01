@@ -92,7 +92,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
     /**
      * Override this method if you want to manually handle the case when it watches for the events in the all
-     * namespaces (<code>WATCHED_NAMESPACES="*"</code>).
+     * namespaces (<code>WATCH_NAMESPACES="*"</code>).
      *
      *
      * @param entity     entity that represents the config map (or CR) that has just been created.
@@ -116,7 +116,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
     /**
      * Override this method if you want to manually handle the case when it watches for the events in the all
-     * namespaces (<code>WATCHED_NAMESPACES="*"</code>).
+     * namespaces (<code>WATCH_NAMESPACES="*"</code>).
      *
      *
      * @param entity     entity that represents the config map (or CR) that has just been created.
@@ -141,7 +141,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
     /**
      * Override this method if you want to manually handle the case when it watches for the events in the all
-     * namespaces (<code>WATCHED_NAMESPACES="*"</code>).
+     * namespaces (<code>WATCH_NAMESPACES="*"</code>).
      *
      *
      * @param entity     entity that represents the config map (or CR) that has just been created.

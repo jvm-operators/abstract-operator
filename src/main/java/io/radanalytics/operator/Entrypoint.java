@@ -241,7 +241,7 @@ public class Entrypoint {
         labels.addAll(Arrays.asList("gitSha", "version",
                 "CRD",
                 "COLORS",
-                OperatorConfig.WATCHED_NAMESPACE,
+                OperatorConfig.WATCH_NAMESPACE,
                 OperatorConfig.METRICS,
                 OperatorConfig.METRICS_JVM,
                 OperatorConfig.METRICS_PORT,
