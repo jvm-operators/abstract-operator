@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -50,9 +51,9 @@ public abstract class AbstractWatcher<T extends EntityInfo> {
 
     // use via builder
     protected AbstractWatcher(boolean isCrd, String namespace, String entityName, KubernetesClient client,
-                           CustomResourceDefinition crd, Map<String, String> selector, BiConsumer<T, String> onAdd,
-                           BiConsumer<T, String> onDelete, BiConsumer<T, String> onModify, Predicate<ConfigMap> isSupported,
-                           Function<ConfigMap, T> convert, Function<InfoClass, T> convertCr) {
+                              CustomResourceDefinition crd, Map<String, String> selector, BiConsumer<T, String> onAdd,
+                              BiConsumer<T, String> onDelete, BiConsumer<T, String> onModify, Predicate<ConfigMap> isSupported,
+                              Function<ConfigMap, T> convert, Function<InfoClass, T> convertCr) {
         this.isCrd = isCrd;
         this.namespace = namespace;
         this.entityName = entityName;
@@ -74,7 +75,8 @@ public abstract class AbstractWatcher<T extends EntityInfo> {
             MixedOperation<ConfigMap, ConfigMapList, DoneableConfigMap, Resource<ConfigMap, DoneableConfigMap>> aux = client.configMaps();
 
             final boolean inAllNs = "*".equals(namespace);
-            Watchable<Watch, Watcher<ConfigMap>> watchable = inAllNs ? aux.inAnyNamespace().withLabels(selector) : aux.inNamespace(namespace).withLabels(selector);
+            Watchable<Watch, Watcher<ConfigMap>> watchable = inAllNs ? aux.inAnyNamespace().withLabels(selector) :
+                    aux.inNamespace(namespace).withLabels(selector);
             Watch watch = watchable.watch(new Watcher<ConfigMap>() {
                 @Override
                 public void eventReceived(Action action, ConfigMap cm) {
@@ -163,7 +165,7 @@ public abstract class AbstractWatcher<T extends EntityInfo> {
 
     private void recreateWatcher() {
         this.watch.close();
-        CompletableFuture<Watch> configMapWatch = isCrd ? createCustomResourceWatch(): createConfigMapWatch();
+        CompletableFuture<Watch> configMapWatch = isCrd ? createCustomResourceWatch() : createConfigMapWatch();
         final String crdOrCm = isCrd ? "CustomResource" : "ConfigMap";
         configMapWatch.thenApply(res -> {
             log.info("{} watch recreated in namespace {}", crdOrCm, namespace);

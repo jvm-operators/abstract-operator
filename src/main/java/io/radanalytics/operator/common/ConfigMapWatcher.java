@@ -11,6 +11,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import static io.radanalytics.operator.common.OperatorConfig.ALL_NAMESPACES;
+
 public class ConfigMapWatcher<T extends EntityInfo> extends AbstractWatcher<T> {
 
     // use via builder
@@ -27,7 +29,7 @@ public class ConfigMapWatcher<T extends EntityInfo> extends AbstractWatcher<T> {
     }
 
     public static class Builder<T> {
-        private String namespace = "*";
+        private String namespace = ALL_NAMESPACES;
         private String entityName;
         private KubernetesClient client;
         private Map<String, String> selector;

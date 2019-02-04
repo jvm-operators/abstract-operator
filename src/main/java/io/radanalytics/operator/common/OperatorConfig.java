@@ -4,6 +4,7 @@
  */
 package io.radanalytics.operator.common;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -17,6 +18,8 @@ import static java.util.Arrays.asList;
 public class OperatorConfig {
 
     public static final String WATCH_NAMESPACE = "WATCH_NAMESPACE";
+    public static final String SAME_NAMESPACE = "~";
+    public static final String ALL_NAMESPACES = "*";
     public static final String METRICS = "METRICS";
     public static final String METRICS_JVM = "METRICS_JVM";
     public static final String METRICS_PORT = "METRICS_PORT";
@@ -74,7 +77,7 @@ public class OperatorConfig {
 
         Set<String> namespaces;
         if (namespacesList == null || namespacesList.isEmpty()) {
-            namespaces = null; //Collections.singleton("*");
+            namespaces = Collections.singleton(SAME_NAMESPACE);
         } else {
             namespaces = new HashSet<>(asList(namespacesList.trim().split("\\s*,+\\s*")));
             namespaces = namespaces.stream().map(

@@ -34,6 +34,8 @@ import java.util.concurrent.*;
 import java.util.stream.IntStream;
 
 import static io.radanalytics.operator.common.AnsiColors.*;
+import static io.radanalytics.operator.common.OperatorConfig.ALL_NAMESPACES;
+import static io.radanalytics.operator.common.OperatorConfig.SAME_NAMESPACE;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
@@ -75,16 +77,21 @@ public class Entrypoint {
         }
 
         List<CompletableFuture> futures = new ArrayList<>();
-        if (null == config.getNamespaces()) { // get the current namespace
+        if (SAME_NAMESPACE.equals(config.getNamespaces().iterator().next())) { // current namespace
             String namespace = client.getNamespace();
             CompletableFuture future = runForNamespace(isOpenShift, namespace, config.getReconciliationIntervalS(), 0);
             futures.add(future);
         } else {
-            Iterator<String> ns;
-            int i;
-            for (ns = config.getNamespaces().iterator(), i = 0; i < config.getNamespaces().size(); i++) {
-                CompletableFuture future = runForNamespace(isOpenShift, ns.next(), config.getReconciliationIntervalS(), i);
+            if (ALL_NAMESPACES.equals(config.getNamespaces().iterator().next())) {
+                CompletableFuture future = runForNamespace(isOpenShift, ALL_NAMESPACES, config.getReconciliationIntervalS(), 0);
                 futures.add(future);
+            } else {
+                Iterator<String> ns;
+                int i;
+                for (ns = config.getNamespaces().iterator(), i = 0; i < config.getNamespaces().size(); i++) {
+                    CompletableFuture future = runForNamespace(isOpenShift, ns.next(), config.getReconciliationIntervalS(), i);
+                    futures.add(future);
+                }
             }
         }
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[]{}));
@@ -251,7 +258,7 @@ public class Entrypoint {
         values.addAll(Arrays.asList(gitSha, version,
                 Optional.ofNullable(System.getenv().get("CRD")).orElse("false"),
                 Optional.ofNullable(System.getenv().get("COLORS")).orElse("true"),
-                null == config.getNamespaces() ? client.getNamespace() : config.getNamespaces().toString(),
+                SAME_NAMESPACE.equals(config.getNamespaces().iterator().next()) ? client.getNamespace() : config.getNamespaces().toString(),
                 String.valueOf(config.isMetrics()),
                 String.valueOf(config.isMetricsJvm()),
                 String.valueOf(config.getMetricsPort()),

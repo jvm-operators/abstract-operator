@@ -21,11 +21,14 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static io.radanalytics.operator.common.OperatorConfig.ALL_NAMESPACES;
 
 /**
  * This abstract class represents the extension point of the abstract-operator library.
@@ -92,7 +95,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
     /**
      * Override this method if you want to manually handle the case when it watches for the events in the all
-     * namespaces (<code>WATCH_NAMESPACES="*"</code>).
+     * namespaces (<code>WATCH_NAMESPACE="*"</code>).
      *
      *
      * @param entity     entity that represents the config map (or CR) that has just been created.
@@ -116,7 +119,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
     /**
      * Override this method if you want to manually handle the case when it watches for the events in the all
-     * namespaces (<code>WATCH_NAMESPACES="*"</code>).
+     * namespaces (<code>WATCH_NAMESPACE="*"</code>).
      *
      *
      * @param entity     entity that represents the config map (or CR) that has just been created.
@@ -141,7 +144,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
     /**
      * Override this method if you want to manually handle the case when it watches for the events in the all
-     * namespaces (<code>WATCH_NAMESPACES="*"</code>).
+     * namespaces (<code>WATCH_NAMESPACE="*"</code>).
      *
      *
      * @param entity     entity that represents the config map (or CR) that has just been created.
@@ -153,13 +156,13 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     }
 
     private void onAction(T entity, String namespace, Consumer<T> handler) {
-        if ("*".equals(this.namespace)) {
+        if (ALL_NAMESPACES.equals(this.namespace)) {
             //synchronized (this.watch) { // events from the watch should be serialized (1 thread)
             try {
                 this.namespace = namespace;
                 handler.accept(entity);
             } finally {
-                this.namespace = "*";
+                this.namespace = ALL_NAMESPACES;
             }
             //}
         } else {
@@ -248,7 +251,8 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         CompletableFuture<? extends AbstractWatcher<T>> future = initializeWatcher();
         future.thenApply(res -> {
                 this.watch = res;
-                log.info("{}{} running{} for namespace {}", AnsiColors.gr(), operatorName, AnsiColors.xx(), namespace);
+                log.info("{}{} running{} for namespace {}", AnsiColors.gr(), operatorName, AnsiColors.xx(),
+                        Optional.ofNullable(namespace).orElse("'all'"));
                 return res;
         }).exceptionally(e -> {
             log.error("{} startup failed for namespace {}", operatorName, namespace, e.getCause());

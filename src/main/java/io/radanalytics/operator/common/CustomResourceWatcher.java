@@ -9,6 +9,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+import static io.radanalytics.operator.common.OperatorConfig.ALL_NAMESPACES;
+
 public class CustomResourceWatcher<T extends EntityInfo> extends AbstractWatcher<T> {
 
     // use via builder
@@ -24,7 +26,7 @@ public class CustomResourceWatcher<T extends EntityInfo> extends AbstractWatcher
     }
 
     public static class Builder<T> {
-        private String namespace = "*";
+        private String namespace = ALL_NAMESPACES;
         private String entityName;
         private KubernetesClient client;
         private CustomResourceDefinition crd;
