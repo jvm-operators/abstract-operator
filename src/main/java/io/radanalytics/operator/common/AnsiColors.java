@@ -1,8 +1,6 @@
 package io.radanalytics.operator.common;
 
 public class AnsiColors {
-    public static final String BALLOON = "\uD83C\uDF88";
-    public static final String FOO = re() + BALLOON + gr() + BALLOON + ye() + BALLOON + xx();
 
     // these shouldn't be used directly
     private static final String ANSI_R = "\u001B[31m";

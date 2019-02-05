@@ -10,6 +10,9 @@ import java.util.Arrays;
 
 import static io.radanalytics.operator.common.AnsiColors.*;
 
+/**
+ * Helper class that can be used from the concrete operators as the glue code for running the OS process.
+ */
 public class ProcessRunner {
     private static final Logger log = LoggerFactory.getLogger(AbstractOperator.class.getName());
 

@@ -233,8 +233,8 @@ public class Entrypoint {
             registerMetrics(gitSha, version);
         }
 
-        log.info("\n{}Operator{} has started in version {}{}{}. {}\n", re(), xx(), gr(),
-                version, xx(), FOO);
+        log.info("\n{}Operator{} has started in version {}{}{}.\n", re(), xx(), gr(),
+                version, xx());
         if (!gitSha.isEmpty()) {
             log.info("Git sha: {}{}{}", ye(), gitSha, xx());
         }
