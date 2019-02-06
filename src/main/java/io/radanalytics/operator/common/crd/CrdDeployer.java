@@ -68,7 +68,8 @@ public class CrdDeployer {
     }
 
     private static CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> getCRDBuilder(String prefix, String entityName) {
-        final String plural = entityName + "s";
+        // plural name must be all lowercase otherwise fabric8 will barf
+        final String plural = (entityName + "s").toLowerCase();
         return new CustomResourceDefinitionBuilder()
                 .withApiVersion("apiextensions.k8s.io/v1beta1")
                 .withNewMetadata().withName(plural + "." + prefix)

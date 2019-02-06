@@ -301,7 +301,16 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     }
 
     private void initInternals() {
-        entityName = (named != null && !named.isEmpty()) ? named.toLowerCase() : (entityName != null && !entityName.isEmpty()) ? this.entityName.toLowerCase() : (infoClass == null ? "" : infoClass.getSimpleName().toLowerCase());
+         // prefer "named" for the entity name, otherwise "entityName" and finally the converted class name.
+        if (named != null && !named.isEmpty()) {
+            entityName = named;
+        } else if (entityName != null && !entityName.isEmpty()) {
+            entityName = this.entityName;
+        } else if (infoClass != null) {
+            entityName = infoClass.getSimpleName();
+        } else {
+            entityName = "";
+        }
         isCrd = isCrd || "true".equals(System.getenv("CRD"));
         prefix = prefix == null || prefix.isEmpty() ? getClass().getPackage().getName() : prefix;
         prefix = prefix + (!prefix.endsWith("/") ? "/" : "");
