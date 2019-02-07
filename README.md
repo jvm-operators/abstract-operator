@@ -43,6 +43,7 @@ By default the operator is based on `ConfigMaps`, if you want to create `CRD`-ba
 For the CRDs the:
 * `forKind` field represent the name of the `CRD` ('s' at the end for plural)
 * `prefix` field in the annotation represents the group
+* `shortNames` field is an array of strings representing the shortened name of the resource.
 * as for the version, currently the `v1` is created automatically, but one can also create the `CRD` on his own before running the operator and providing the `forKind` and `prefix` matches, operator will use the existing `CRD`
 
 #### Configuration

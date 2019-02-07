@@ -11,6 +11,7 @@ public @interface Operator {
     Class<? extends EntityInfo> forKind();
     String named() default "";
     String prefix() default "";
+    String[] shortNames() default {};
     boolean enabled() default true;
     boolean crd() default false;
 }
