@@ -12,9 +12,7 @@ install-parent:
 
 .PHONY: travis-e2e-use-case
 travis-e2e-use-case:
-	echo -e "travis_fold:start:e2e\033[33;1mSimple integration test\033[0m"
 	./.travis/.travis.e2e-oc.sh
-	echo -e "\ntravis_fold:end:e2e\r"
 
 .PHONY: build-travis
 build-travis: install-parent build

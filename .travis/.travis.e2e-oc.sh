@@ -7,9 +7,6 @@ MANIFEST_SUFIX=""
 KIND="SparkCluster"
 VERSION="v3.9.0"
 
-#RUN=0 source "${DIR}/../spark-operator/.travis/.travis.prepare.openshift.sh"
-source "${DIR}/../spark-operator/.travis/.travis.test-common.sh"
-
 run_tests() {
   testCreateCluster1 || errorLogs
   testScaleCluster || errorLogs
@@ -22,7 +19,9 @@ run_tests() {
 
 prepare_operator() {
     set -ex
-    LIBRARY_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version|grep -Ev '(^\[|Download\w+:)')"
+    echo -e "travis_fold:start:prepareOp\033[33;1mPreparing operator\033[0m"
+    #LIBRARY_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version|grep -Ev '(^\[|Download\w+:)')"
+    LIBRARY_VERSION=$(cat pom.xml | grep -A 1 "<artifactId>abstract-operator</artifactId>" | grep version | sed 's;.*<version>\([^<]\+\).*;\1;g')
     rm -rf ${DIR}/../spark-operator || true
     pushd ${DIR}/..
 	git clone --depth=100 --branch master --recurse-submodules https://github.com/radanalyticsio/spark-operator.git
@@ -35,23 +34,26 @@ prepare_operator() {
     # use the -SNAPSHOTed version of abstract operator
 	sed -i'' "s;\(<abstract-operator.version>\)\([^<]\+\);\1${LIBRARY_VERSION};g" pom.xml
     make build
+    source "./.travis/.travis.test-common.sh"
+    echo "sourcing ./test/lib/init.sh"
+    source "./test/lib/init.sh"
+    echo -e "\ntravis_fold:end:prepareOp\r"
+    source "./.travis/.travis.prepare.openshift.sh"
     popd
+    
     set +ex
 }
 
 main() {
+  set -x
   prepare_operator
 
-  [ "$TRAVIS" == "true" ] && download_openshift
-  [ "$TRAVIS" == "true" ] && setup_insecure_registry
-  setup_manifest
-
+  echo -e "travis_fold:start:e2e\033[33;1mSimple integration test\033[0m"
   DIR="${DIR}/../spark-operator/.travis"
-
   export total=6
   export testIndex=0
   tear_down
-  setup_testing_framework
+  os::util::environment::setup_time_vars
   os::test::junit::declare_suite_start "operator/tests"
   cluster_up
   testCreateOperator || { oc get events; oc get pods; exit 1; }
@@ -59,6 +61,8 @@ main() {
   run_tests
   os::test::junit::declare_suite_end
   tear_down
+  echo -e "\ntravis_fold:end:e2e\r"
+  set +x
 }
 
 main $@
