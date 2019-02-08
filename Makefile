@@ -1,19 +1,35 @@
 M ?= mvn
 
 .PHONY: build
-build: 
+build:
+	echo -e "travis_fold:start:jbuild\033[33;1mBuilding the Java code\033[0m"
 	MAVEN_OPTS="-Djansi.passthrough=true -Dplexus.logger.type=ansi $(MAVEN_OPTS)" $(M) clean package -DskipTests
+	echo -e "\ntravis_fold:end:jbuild\r"
 
 .PHONY: install-parent
 install-parent:
 	git clone --depth=1 --branch master https://github.com/jvm-operators/operator-parent-pom.git && cd operator-parent-pom && MAVEN_OPTS="-Djansi.passthrough=true -Dplexus.logger.type=ansi $(MAVEN_OPTS)" $(M) clean install && cd - && rm -rf operator-parent-pom
+
+.PHONY: travis-e2e-use-case
+travis-e2e-use-case:
+	echo -e "travis_fold:start:e2e\033[33;1mSimple integration test\033[0m"
+	- rm -rf spark-operator || true
+	git clone --depth=100 --branch master --recurse-submodules https://github.com/radanalyticsio/spark-operator.git
+	# checkout the latest release
+	[[ $(shell git -C spark-operator/ describe --abbrev=0 --tags) =~ ^[0-9]+\.[0-9]+\.[0-9]+$$ ]] && cd spark-operator && git checkout $(shell git -C spark-operator/ describe --abbrev=0 --tags)
+	# use the -SNAPSHOTed version of abstract operator
+	cd spark-operator && sed -i'' "s;\(<abstract-operator.version>\)\([^<]\+\);\1$(shell mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version|grep -Ev '(^\[|Download\w+:)');g" pom.xml && make build
+	./.travis/.travis.e2e-oc.sh
+	echo -e "\ntravis_fold:end:e2e\r"
 
 .PHONY: build-travis
 build-travis: install-parent build
 
 .PHONY: javadoc
 javadoc:
+	echo -e "travis_fold:start:javadoc\033[33;1mGenerating Javadoc\033[0m"
 	$(M) javadoc:javadoc
+	echo -e "\ntravis_fold:end:javadoc\r"
 
 .PHONY: update-parent
 update-parent:

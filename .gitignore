@@ -119,6 +119,8 @@ Desktop.ini
 /k8s-spark-operator.yaml
 /openshift-spark-operator.yaml
 
+spark-operator
+
 # oc cluster up
 openshift.local.clusterup
 
