@@ -24,6 +24,7 @@ public class CrdDeployer {
                                                     String prefix,
                                                     String entityName,
                                                     String[] shortNames,
+                                                    String pluralName,
                                                     Class<? extends EntityInfo> infoClass,
                                                     boolean isOpenshift) {
         final String newPrefix = prefix.substring(0, prefix.length() - 1);
@@ -43,12 +44,19 @@ public class CrdDeployer {
             CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> builder;
 
             if (schema != null) {
-                builder = getCRDBuilder(newPrefix, entityName, shortNames).withNewValidation()
+                builder = getCRDBuilder(newPrefix,
+                                        entityName,
+                                        shortNames,
+                                        pluralName)
+                        .withNewValidation()
                         .withNewOpenAPIV3SchemaLike(schema)
                         .endOpenAPIV3Schema()
                         .endValidation();
             } else {
-                builder = getCRDBuilder(newPrefix, entityName, shortNames);
+                builder = getCRDBuilder(newPrefix,
+                                        entityName,
+                                        shortNames,
+                                        pluralName);
             }
             crdToReturn = builder.endSpec().build();
             try {
@@ -57,7 +65,12 @@ public class CrdDeployer {
                 // old version of K8s/openshift -> don't use schema validation
                 log.warn("Consider upgrading the {}. Your version doesn't support schema validation for custom resources."
                         , isOpenshift ? "OpenShift" : "Kubernetes");
-                crdToReturn = getCRDBuilder(newPrefix, entityName, shortNames).endSpec().build();
+                crdToReturn = getCRDBuilder(newPrefix,
+                                            entityName,
+                                            shortNames,
+                                            pluralName)
+                        .endSpec()
+                        .build();
                 client.customResourceDefinitions().createOrReplace(crdToReturn);
             }
         }
@@ -69,9 +82,18 @@ public class CrdDeployer {
         return crdToReturn;
     }
 
-    private static CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> getCRDBuilder(String prefix, String entityName, String[] shortNames) {
-        // plural name must be all lowercase
-        final String plural = (entityName + "s").toLowerCase();
+    private static CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> getCRDBuilder(String prefix,
+                                                                                                            String entityName,
+                                                                                                            String[] shortNames,
+                                                                                                            String pluralName) {
+        // if no plural name is specified, try to make one by adding "s"
+        // also, plural names must be all lowercase
+        String plural = pluralName;
+        if (plural.isEmpty()) {
+            plural = (entityName + "s");
+        }
+        plural = plural.toLowerCase();
+
         // short names must be all lowercase
         String[] shortNamesLower = Arrays.stream(shortNames)
                                          .map(sn -> sn.toLowerCase())
