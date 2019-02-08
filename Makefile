@@ -13,12 +13,6 @@ install-parent:
 .PHONY: travis-e2e-use-case
 travis-e2e-use-case:
 	echo -e "travis_fold:start:e2e\033[33;1mSimple integration test\033[0m"
-	- rm -rf spark-operator || true
-	git clone --depth=100 --branch master --recurse-submodules https://github.com/radanalyticsio/spark-operator.git
-	# checkout the latest release
-	[[ $(shell git -C spark-operator/ describe --abbrev=0 --tags) =~ ^[0-9]+\.[0-9]+\.[0-9]+$$ ]] && cd spark-operator && git checkout $(shell git -C spark-operator/ describe --abbrev=0 --tags)
-	# use the -SNAPSHOTed version of abstract operator
-	cd spark-operator && sed -i'' "s;\(<abstract-operator.version>\)\([^<]\+\);\1$(shell mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version|grep -Ev '(^\[|Download\w+:)');g" pom.xml && make build
 	./.travis/.travis.e2e-oc.sh
 	echo -e "\ntravis_fold:end:e2e\r"
 
