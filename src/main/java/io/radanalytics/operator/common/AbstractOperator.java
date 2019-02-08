@@ -53,6 +53,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     protected String entityName;
     protected String prefix;
     protected String[] shortNames;
+    protected String pluralName;
     protected Class<T> infoClass;
     protected boolean isCrd;
     protected boolean enabled = true;
@@ -75,6 +76,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
             this.enabled = annotation.enabled();
             this.prefix = annotation.prefix();
             this.shortNames = annotation.shortNames();
+            this.pluralName = annotation.pluralName();
         } else {
             log.info("Annotation on the operator class not found, falling back to direct field access.");
             log.info("If the initialization fails, it's probably due to the fact that some compulsory fields are missing.");
@@ -244,7 +246,13 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         log.info("Starting {} for namespace {}", operatorName, namespace);
 
         if (isCrd) {
-            this.crd = CrdDeployer.initCrds(client, prefix, entityName, shortNames, infoClass, isOpenshift);
+            this.crd = CrdDeployer.initCrds(client,
+                                            prefix,
+                                            entityName,
+                                            shortNames,
+                                            pluralName,
+                                            infoClass,
+                                            isOpenshift);
         }
 
         // onInit() can be overriden in child operators

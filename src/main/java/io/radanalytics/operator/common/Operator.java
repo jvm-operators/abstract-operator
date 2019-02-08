@@ -12,6 +12,7 @@ public @interface Operator {
     String named() default "";
     String prefix() default "";
     String[] shortNames() default {};
+    String pluralName() default "";
     boolean enabled() default true;
     boolean crd() default false;
 }
