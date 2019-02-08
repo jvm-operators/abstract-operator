@@ -12,7 +12,7 @@ install-parent:
 
 .PHONY: travis-e2e-use-case
 travis-e2e-use-case:
-	./.travis/.travis.e2e-oc.sh
+	./.travis/.travis.e2e-oc.sh || echo -e "\n\nEnd-to-end scenario ended up with error"
 
 .PHONY: build-travis
 build-travis: install-parent build
