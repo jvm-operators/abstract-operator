@@ -9,6 +9,7 @@ install: true
 script:
   - make javadoc
   - make build-travis
+  - make travis-e2e-use-case
 
 #deploy:
 #  provider: script
