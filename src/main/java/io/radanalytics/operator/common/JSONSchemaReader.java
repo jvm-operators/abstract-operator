@@ -14,8 +14,16 @@ public class JSONSchemaReader {
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         char[] chars = infoClass.getSimpleName().toCharArray();
         chars[0] = Character.toLowerCase(chars[0]);
-        String url = "/schema/" + new String(chars) + ".json";
-        URL in = infoClass.getResource(url);
+        String urlJson = "/schema/" + new String(chars) + ".json";
+        String urlJS = "/schema/" + new String(chars) + ".js";
+        URL in = infoClass.getResource(urlJson);
+        if (null == in) {
+            // try also if .js file exists
+            in = infoClass.getResource(urlJS);
+        }
+        if (null == in) {
+            return null;
+        }
         try {
             return mapper.readValue(in, JSONSchemaProps.class);
         } catch (IOException e) {
