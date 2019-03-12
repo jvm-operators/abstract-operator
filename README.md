@@ -7,6 +7,7 @@
 
 ## Example Implementations
 * [spark-operator](https://github.com/radanalyticsio/spark-operator) - Java operator for managing Apache Spark clusters and apps
+* [java-example-operator](https://github.com/jvm-operators/java-example-operator) - Minimalistic operator in Java
 * [scala-example-operator](https://github.com/jvm-operators/scala-example-operator) - Minimalistic operator in Scala
 * [kotlin-example-operator](https://github.com/jvm-operators/kotlin-example-operator) - Minimalistic operator in Kotlin
 * [groovy-example-operator](https://github.com/jvm-operators/groovy-example-operator) - Minimalistic operator in Groovy
