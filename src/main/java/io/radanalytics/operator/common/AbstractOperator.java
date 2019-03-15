@@ -321,7 +321,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         } else {
             entityName = "";
         }
-        isCrd = isCrd || "true".equals(System.getenv("CRD"));
+        isCrd = isCrd || !"false".equals(System.getenv("CRD"));
         prefix = prefix == null || prefix.isEmpty() ? getClass().getPackage().getName() : prefix;
         prefix = prefix + (!prefix.endsWith("/") ? "/" : "");
         operatorName = "'" + entityName + "' operator";
