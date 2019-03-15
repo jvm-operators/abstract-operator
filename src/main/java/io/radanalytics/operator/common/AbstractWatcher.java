@@ -107,7 +107,7 @@ public abstract class AbstractWatcher<T extends EntityInfo> {
                 }
             });
             return watch;
-        }, Entrypoint.EXECUTORS);
+        }, Entrypoint.getExecutors());
         cf.thenApply(w -> {
             log.info("ConfigMap watcher running for labels {}", selector);
             return w;
@@ -152,7 +152,7 @@ public abstract class AbstractWatcher<T extends EntityInfo> {
             });
             AbstractWatcher.this.watch = watch;
             return watch;
-        }, Entrypoint.EXECUTORS);
+        }, Entrypoint.getExecutors());
         cf.thenApply(w -> {
             log.info("CustomResource watcher running for kinds {}", entityName);
             return w;
