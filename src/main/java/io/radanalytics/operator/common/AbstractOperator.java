@@ -315,7 +315,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         if (named != null && !named.isEmpty()) {
             entityName = named;
         } else if (entityName != null && !entityName.isEmpty()) {
-            entityName = this.entityName;
+            // ok case
         } else if (infoClass != null) {
             entityName = infoClass.getSimpleName();
         } else {
