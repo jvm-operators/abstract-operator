@@ -321,7 +321,11 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         } else {
             entityName = "";
         }
-        isCrd = isCrd || !"false".equals(System.getenv("CRD"));
+
+        // if CRD env variable is defined, it will override the annotation parameter
+        if (null != System.getenv("CRD")) {
+            isCrd = !"false".equals(System.getenv("CRD"));
+        }
         prefix = prefix == null || prefix.isEmpty() ? getClass().getPackage().getName() : prefix;
         prefix = prefix + (!prefix.endsWith("/") ? "/" : "");
         operatorName = "'" + entityName + "' operator";
