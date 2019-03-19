@@ -7,7 +7,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.radanalytics</groupId>
     <artifactId>abstract-operator</artifactId>
-    <version>0.5.3</version>
+    <version>0.5.4-SNAPSHOT</version>
 
     <scm>
         <url>https://github.com/jvm-operators/abstract-operator</url>
