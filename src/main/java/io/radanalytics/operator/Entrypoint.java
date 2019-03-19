@@ -256,7 +256,7 @@ public class Entrypoint {
                 OperatorConfig.OPERATOR_OPERATION_TIMEOUT_MS
         ));
         values.addAll(Arrays.asList(gitSha, version,
-                Optional.ofNullable(System.getenv().get("CRD")).orElse("false"),
+                Optional.ofNullable(System.getenv().get("CRD")).orElse("true"),
                 Optional.ofNullable(System.getenv().get("COLORS")).orElse("true"),
                 SAME_NAMESPACE.equals(config.getNamespaces().iterator().next()) ? client.getNamespace() : config.getNamespaces().toString(),
                 String.valueOf(config.isMetrics()),

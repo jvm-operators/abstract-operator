@@ -14,5 +14,5 @@ public @interface Operator {
     String[] shortNames() default {};
     String pluralName() default "";
     boolean enabled() default true;
-    boolean crd() default false;
+    boolean crd() default true;
 }

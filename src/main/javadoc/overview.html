@@ -88,14 +88,17 @@
         </svg>
     </a>CRDs
     </h3>
-    <p>By default the operator is based on <code>ConfigMaps</code>, if you want to create <code>CRD</code>-based
-        operator, add <code>crd=true</code> parameter in the <code>@Operator</code> annotation. This will try to create
+    <p>By default the operator is based on <code>CustomResourceDefinitions</code>, if you want to create <code>ConfigMap</code>-based
+        operator, add <code>crd=false</code> parameter in the <code>@Operator</code> annotation. Custom Resource operation mode will try to create
         the custom resource definition from the <code>infoClass</code> if it's not already there and then it listens on
         the newly created, deleted or modified custom resources (CR) of the given type.</p>
     <p>For the CRDs the:</p>
     <ul>
         <li><code>forKind</code> field represent the name of the <code>CRD</code> ('s' at the end for plular)</li>
+        <li><code>pluralName</code> explicitly se the plural name of the CR</li>
         <li><code>prefix</code> field in the annotation represents the group</li>
+        <li><code>shortNames</code> short names that can be used instead of the long version (service -&gt; svc, namespace -&gt; ns, etc.)</li>
+        <li><code>enabled</code> by default it's enabled, but one may want to temporarily disable/silence the operator</li>
         <li>as for the version, currently the <code>v1</code> is created automatically, but one can also create the
             <code>CRD</code> on his own before running the operator and providing the <code>forKind</code> and <code>prefix</code>
             matches, operator will use the existing <code>CRD</code></li>
