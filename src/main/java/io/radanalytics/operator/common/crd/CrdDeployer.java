@@ -34,12 +34,13 @@ public class CrdDeployer {
                 .list()
                 .getItems()
                 .stream()
-                .filter(p -> entityName.equals(p.getSpec().getNames().getKind()))
+                .filter(p -> entityName.equals(p.getSpec().getNames().getKind()) && newPrefix.equals(p.getSpec().getGroup()))
                 .collect(Collectors.toList());
         if (!crds.isEmpty()) {
             crdToReturn = crds.get(0);
+            log.info("CustomResourceDefinition for {} has been found in the K8s, so we are skipping the creation.", entityName);
         } else {
-
+            log.info("Creating CustomResourceDefinition for {}.", entityName);
             JSONSchemaProps schema = JSONSchemaReader.readSchema(infoClass);
             CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> builder;
 
