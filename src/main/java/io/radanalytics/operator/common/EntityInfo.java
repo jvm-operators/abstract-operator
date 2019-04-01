@@ -13,6 +13,7 @@ import java.util.Objects;
  */
 public abstract class EntityInfo {
     protected String name;
+    protected String namespace;
 
     public void setName(String name) {
         this.name = name;
@@ -22,16 +23,24 @@ public abstract class EntityInfo {
         return name;
     }
 
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         EntityInfo that = (EntityInfo) o;
-        return Objects.equals(name, that.name);
+        return Objects.equals(name, that.name) && Objects.equals(namespace, that.namespace);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name);
+        return Objects.hash(name, namespace);
     }
 }
