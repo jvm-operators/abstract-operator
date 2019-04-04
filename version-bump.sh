@@ -37,6 +37,7 @@ main() {
   PARAM=$1
 
   CURRENT=`mvn -U org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version|grep -Ev "(^\[|Download.+:)"`
+  [[ ! "${CURRENT}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$ ]] && echo "Can't find out the current version: $CURRENT" && exit 1
   VERSION=`echo $CURRENT | sed 's/-SNAPSHOT//g'`
 
   maj=`echo $VERSION | sed 's/^\([0-9]\+\)\..*$/\1/g'`
