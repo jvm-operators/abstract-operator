@@ -69,15 +69,10 @@ public class OperatorConfig {
 
         String namespacesList = map.get(WATCH_NAMESPACE);
 
-        // todo: remove me in the future versions, "WATCHED_NAMESPACE" has been deprecated but let's support it
-        // for a couple of versions. Not to break the clients.
-        if (namespacesList == null) {
-            namespacesList = map.get("WATCHED_NAMESPACE");
-        }
-
         Set<String> namespaces;
         if (namespacesList == null || namespacesList.isEmpty()) {
-            namespaces = Collections.singleton(SAME_NAMESPACE);
+            // empty WATCH_NAMESPACE means we will be watching all the namespaces
+            namespaces = Collections.singleton(ALL_NAMESPACES);
         } else {
             namespaces = new HashSet<>(asList(namespacesList.trim().split("\\s*,+\\s*")));
             namespaces = namespaces.stream().map(
