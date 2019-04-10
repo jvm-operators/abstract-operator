@@ -1,5 +1,6 @@
 package io.radanalytics.operator.common.crd;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionFluent;
@@ -7,6 +8,7 @@ import io.fabric8.kubernetes.api.model.apiextensions.JSONSchemaProps;
 import io.fabric8.kubernetes.client.CustomResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.radanalytics.operator.common.EntityInfo;
 import io.radanalytics.operator.common.JSONSchemaReader;
 import org.slf4j.Logger;
@@ -45,6 +47,7 @@ public class CrdDeployer {
             CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> builder;
 
             if (schema != null) {
+                removeDefaultValues(schema);
                 builder = getCRDBuilder(newPrefix,
                                         entityName,
                                         shortNames,
@@ -61,6 +64,10 @@ public class CrdDeployer {
             }
             crdToReturn = builder.endSpec().build();
             try {
+                if (schema != null) {
+                    // https://github.com/fabric8io/kubernetes-client/issues/1486
+                    crdToReturn.getSpec().getValidation().getOpenAPIV3Schema().setDependencies(null);
+                }
                 client.customResourceDefinitions().createOrReplace(crdToReturn);
             } catch (KubernetesClientException e) {
                 // old version of K8s/openshift -> don't use schema validation
@@ -81,6 +88,18 @@ public class CrdDeployer {
         io.fabric8.kubernetes.internal.KubernetesDeserializer.registerCustomKind(newPrefix + "/" + crdToReturn.getSpec().getVersion() + "#" + entityName + "List", CustomResourceList.class);
 
         return crdToReturn;
+    }
+
+    private static void removeDefaultValues(JSONSchemaProps schema) {
+        if (null == schema) {
+            return;
+        }
+        schema.setDefault(null);
+        if (null != schema.getProperties()) {
+            for (JSONSchemaProps prop : schema.getProperties().values()) {
+                removeDefaultValues(prop);
+            }
+        }
     }
 
     private static CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> getCRDBuilder(String prefix,
