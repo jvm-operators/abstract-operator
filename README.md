@@ -7,6 +7,7 @@
 
 ## Example Implementations
 * [spark-operator](https://github.com/radanalyticsio/spark-operator) - Java operator for managing Apache Spark clusters and apps
+* [fdp-flink-operator](https://github.com/lightbend/fdp-flink-operator) - Scala operator for managing Apache Flink clusters ([job](https://ci.apache.org/projects/flink/flink-docs-stable/ops/deployment/kubernetes.html#flink-job-cluster-on-kubernetes) and [session](https://ci.apache.org/projects/flink/flink-docs-stable/ops/deployment/kubernetes.html#flink-session-cluster-on-kubernetes))
 * [java-example-operator](https://github.com/jvm-operators/java-example-operator) - Minimalistic operator in Java
 * [scala-example-operator](https://github.com/jvm-operators/scala-example-operator) - Minimalistic operator in Scala
 * [kotlin-example-operator](https://github.com/jvm-operators/kotlin-example-operator) - Minimalistic operator in Kotlin
