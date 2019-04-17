@@ -53,7 +53,7 @@ For the CRDs the:
 #### Configuration
 You can configure the operator using some environmental variables. Here is the list:
 * `WATCH_NAMESPACE`, example values `myproject`, `foo,bar,baz`, `*` - what namespaces the operator should be watching for the events,
-default: same namespace where the operator is deployed
+if left empty, all namespace will be used (same as `*`). One may also use special value `~` denoting the same namespace where the operator is deployed in.
 * `CRD`, values `true/false` - config maps = `false`, custom resources = `true`, default: `true`
 * `COLORS`, values `true/false` - if `true` there will be colors used in the log file, default: `true`
 * `METRICS`, values `true/false` - whether start the simple http server that exposes internal metrics. These metrics are in the Prometheus compliant format and can be scraped by Prometheus; default: `false`
