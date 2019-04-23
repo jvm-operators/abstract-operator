@@ -197,7 +197,7 @@ public class Entrypoint {
         if (kubernetesApi.getProtocol().equals("https")) {
             urlBuilder.scheme("https");
         }
-        urlBuilder.addPathSegment("oapi");
+        urlBuilder.addPathSegment("apis/route.openshift.io/v1");
 
         OkHttpClient httpClient = HttpClientUtils.createHttpClient(new ConfigBuilder().build());
         HttpUrl url = urlBuilder.build();
