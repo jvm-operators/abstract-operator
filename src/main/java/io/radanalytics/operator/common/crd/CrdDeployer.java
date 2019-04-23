@@ -1,6 +1,5 @@
 package io.radanalytics.operator.common.crd;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionFluent;
@@ -8,7 +7,6 @@ import io.fabric8.kubernetes.api.model.apiextensions.JSONSchemaProps;
 import io.fabric8.kubernetes.client.CustomResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.fabric8.kubernetes.client.utils.Serialization;
 import io.radanalytics.operator.common.EntityInfo;
 import io.radanalytics.operator.common.JSONSchemaReader;
 import org.slf4j.Logger;
