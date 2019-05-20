@@ -83,7 +83,7 @@ public class CustomResourceWatcher<T extends EntityInfo> extends AbstractWatcher
 
     public static <T extends EntityInfo> T defaultConvert(Class<T> clazz, InfoClass info) {
         String name = info.getMetadata().getName();
-        String namespace = info.getMetadata().getName();
+        String namespace = info.getMetadata().getNamespace();
         ObjectMapper mapper = new ObjectMapper();
         T infoSpec = mapper.convertValue(info.getSpec(), clazz);
         if (infoSpec == null) { // empty spec
