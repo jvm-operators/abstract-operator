@@ -1,5 +1,6 @@
 package io.radanalytics.operator.common.crd;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionFluent;
@@ -7,6 +8,7 @@ import io.fabric8.kubernetes.api.model.apiextensions.JSONSchemaProps;
 import io.fabric8.kubernetes.client.CustomResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.radanalytics.operator.common.EntityInfo;
 import io.radanalytics.operator.common.JSONSchemaReader;
 import org.slf4j.Logger;
@@ -30,6 +32,7 @@ public class CrdDeployer {
         final String newPrefix = prefix.substring(0, prefix.length() - 1);
         CustomResourceDefinition crdToReturn;
 
+        Serialization.jsonMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         List<CustomResourceDefinition> crds = client.customResourceDefinitions()
                 .list()
                 .getItems()
