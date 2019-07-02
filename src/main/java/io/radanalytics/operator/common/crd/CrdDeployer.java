@@ -74,20 +74,7 @@ public class CrdDeployer {
                     crdToReturn.getSpec().getValidation().getOpenAPIV3Schema().setDependencies(null);
                     log.error("schema: \n\n" + schema.toString());
                 }
-                ObjectMapper mapper = new ObjectMapper();
-//                mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-                try {
-                    String json = mapper.writeValueAsString(crdToReturn);
-                    log.error("json: \n\n" + json);
-                } catch (JsonProcessingException e) {
-                    e.printStackTrace();
-                    log.error(e.getMessage());
-                }
 
-                log.error("crd: \n\n" + crdToReturn.toString());
-                log.error("crd metadata1: \n\n" + crdToReturn.getMetadata());
-                log.error("crd metadata2: \n\n" + crdToReturn.getMetadata().toString());
-                log.error("crd metadata.name: \n\n" + crdToReturn.getMetadata().getName());
                 client.customResourceDefinitions().createOrReplace(crdToReturn);
             } catch (KubernetesClientException e) {
                 // old version of K8s/openshift -> don't use schema validation
@@ -147,7 +134,6 @@ public class CrdDeployer {
                     .withNewNames()
                     .withKind(entityName)
                     .withPlural(plural)
-                    .withSingular(entityName.toLowerCase())
                     .withShortNames(Arrays.asList(shortNamesLower)).endNames()
                 .withGroup(prefix)
                 .withVersion("v1")
