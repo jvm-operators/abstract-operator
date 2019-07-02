@@ -44,7 +44,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
 
     protected static final Logger log = LoggerFactory.getLogger(AbstractOperator.class.getName());
 
-    // client, isOpenshift and namespace are being set in the Entrypoint from the context
+    // client, isOpenshift and namespace are being set in the SDKEntrypoint from the context
     protected KubernetesClient client;
     protected boolean isOpenshift;
     protected String namespace;
