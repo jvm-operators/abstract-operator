@@ -16,10 +16,12 @@ import io.radanalytics.operator.common.JSONSchemaReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Singleton;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Singleton
 public class CrdDeployer {
 
     protected static final Logger log = LoggerFactory.getLogger(CrdDeployer.class.getName());
