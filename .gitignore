@@ -49,7 +49,7 @@ classes/
 # Maven
 ######################
 /log/
-/target/
+target/
 
 ######################
 # Gradle
