@@ -12,17 +12,20 @@ import io.fabric8.kubernetes.client.utils.Serialization;
 import io.radanalytics.operator.common.EntityInfo;
 import io.radanalytics.operator.common.JSONSchemaReader;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Singleton
 public class CrdDeployer {
 
-    protected static final Logger log = LoggerFactory.getLogger(CrdDeployer.class.getName());
+    @Inject
+    protected Logger log;
 
-    public static CustomResourceDefinition initCrds(KubernetesClient client,
+    public CustomResourceDefinition initCrds(KubernetesClient client,
                                                     String prefix,
                                                     String entityName,
                                                     String[] shortNames,
@@ -68,7 +71,9 @@ public class CrdDeployer {
                 if (schema != null) {
                     // https://github.com/fabric8io/kubernetes-client/issues/1486
                     crdToReturn.getSpec().getValidation().getOpenAPIV3Schema().setDependencies(null);
+                    log.error("schema: \n\n" + schema.toString());
                 }
+
                 client.customResourceDefinitions().createOrReplace(crdToReturn);
             } catch (KubernetesClientException e) {
                 // old version of K8s/openshift -> don't use schema validation
@@ -91,7 +96,7 @@ public class CrdDeployer {
         return crdToReturn;
     }
 
-    private static void removeDefaultValues(JSONSchemaProps schema) {
+    private void removeDefaultValues(JSONSchemaProps schema) {
         if (null == schema) {
             return;
         }
@@ -103,7 +108,7 @@ public class CrdDeployer {
         }
     }
 
-    private static CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> getCRDBuilder(String prefix,
+    private CustomResourceDefinitionFluent.SpecNested<CustomResourceDefinitionBuilder> getCRDBuilder(String prefix,
                                                                                                             String entityName,
                                                                                                             String[] shortNames,
                                                                                                             String pluralName) {

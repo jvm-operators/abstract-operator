@@ -10,27 +10,34 @@ import io.prometheus.client.Gauge;
 import io.prometheus.client.exporter.HTTPServer;
 import io.prometheus.client.hotspot.DefaultExports;
 import io.prometheus.client.log4j.InstrumentedAppender;
+import io.quarkus.runtime.ShutdownEvent;
+import io.quarkus.runtime.StartupEvent;
 import io.radanalytics.operator.common.AbstractOperator;
 import io.radanalytics.operator.common.AnsiColors;
+import io.radanalytics.operator.common.EntityInfo;
 import io.radanalytics.operator.common.OperatorConfig;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.reflections.Reflections;
-import org.reflections.ReflectionsException;
-import org.reflections.scanners.ResourcesScanner;
-import org.reflections.scanners.SubTypesScanner;
-import org.reflections.scanners.TypeAnnotationsScanner;
-import org.reflections.util.ClasspathHelper;
-import org.reflections.util.ConfigurationBuilder;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.event.Observes;
+import javax.enterprise.inject.Any;
+import javax.enterprise.inject.Instance;
+import javax.inject.Inject;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.net.URL;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static io.radanalytics.operator.common.AnsiColors.*;
@@ -43,16 +50,24 @@ import static java.util.concurrent.TimeUnit.SECONDS;
  * that are present on the class path. It scans the class path for those classes that have the
  * {@link io.radanalytics.operator.common.Operator} annotations on them or extends the {@link AbstractOperator}.
  */
-public class Entrypoint {
+@ApplicationScoped
+public class SDKEntrypoint {
+    private static ExecutorService executors;
 
-    private static final Logger log = LoggerFactory.getLogger(Entrypoint.class.getName());
+    private OperatorConfig config;
+    private KubernetesClient client;
+    @Inject
+    private Logger log;
 
-    public static ExecutorService EXECUTORS = Executors.newFixedThreadPool(10);
 
-    private static OperatorConfig config;
-    private static KubernetesClient client;
+    @Inject @Any
+    private Instance<AbstractOperator<? extends EntityInfo>> operators;
 
-    public static void main(String[] args) {
+    void onStop(@Observes ShutdownEvent event) {
+        log.info("Stopped");
+    }
+
+    public void onStart(@Observes StartupEvent event) {
         log.info("Starting..");
         config = OperatorConfig.fromMap(System.getenv());
         client = new DefaultKubernetesClient();
@@ -65,11 +80,11 @@ public class Entrypoint {
         if (config.isMetrics()) {
             CompletableFuture<Optional<HTTPServer>> maybeMetricServer = future.thenCompose(s -> runMetrics(isOpenshift));
         }
+//        future.join();
     }
 
-    private static CompletableFuture<Void> run(boolean isOpenShift) {
+    private CompletableFuture<Void> run(boolean isOpenShift) {
         printInfo();
-
         if (isOpenShift) {
             log.info("{}OpenShift{} environment detected.", AnsiColors.ye(), AnsiColors.xx());
         } else {
@@ -97,7 +112,7 @@ public class Entrypoint {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[]{}));
     }
 
-    private static CompletableFuture<Optional<HTTPServer>> runMetrics(boolean isOpenShift) {
+    private CompletableFuture<Optional<HTTPServer>> runMetrics(boolean isOpenShift) {
         HTTPServer httpServer = null;
         try {
             log.info("Starting a simple HTTP server for exposing internal metrics..");
@@ -115,75 +130,61 @@ public class Entrypoint {
         return CompletableFuture.supplyAsync(() -> maybeServer);
     }
 
-    private static CompletableFuture<Void> runForNamespace(boolean isOpenShift, String namespace, long reconInterval, int delay) {
-        List<ClassLoader> classLoadersList = new LinkedList<>();
-        classLoadersList.add(ClasspathHelper.contextClassLoader());
-        classLoadersList.add(ClasspathHelper.staticClassLoader());
+    private CompletableFuture<Void> runForNamespace(boolean isOpenShift, String namespace, long reconInterval, int delay) {
+        List<AbstractOperator<? extends EntityInfo>> operatorList = operators.stream().collect(Collectors.toList());
 
-        final List<Class<? extends AbstractOperator>> operatorClasses = new ArrayList<>();
-        try {
-            Reflections reflections = new Reflections(new ConfigurationBuilder()
-                    .setScanners(new TypeAnnotationsScanner(), new SubTypesScanner(false), new ResourcesScanner())
-                    .setUrls(ClasspathHelper.forClassLoader(classLoadersList.toArray(new ClassLoader[0]))));
-            operatorClasses.addAll(reflections.getSubTypesOf(AbstractOperator.class));
-        } catch (ReflectionsException re) {
-            log.debug(re.getMessage());
-            // np, swallow
+        if (operatorList.isEmpty()) {
+            log.warn("No suitable operators were found, make sure your class extends AbstractOperator and have @Singleton on it.");
         }
 
         List<Future> futures = new ArrayList<>();
-        final int operatorNumber = operatorClasses.size();
+        final int operatorNumber = operatorList.size();
         IntStream.range(0, operatorNumber).forEach(operatorIndex -> {
-            final Class<? extends AbstractOperator> operatorClass = operatorClasses.get(operatorIndex);
-            try {
-                if (!AbstractOperator.class.isAssignableFrom(operatorClass)) {
-                    log.error("Class {} annotated with @Operator doesn't extend the AbstractOperator", operatorClass);
-                    System.exit(1);
-                }
-
-                final AbstractOperator operator = operatorClass.newInstance();  
-                if (!operator.isEnabled()) {
-                    log.info("Skipping initialization of {} operator", operatorClass);
-                    return;
-                }
-                operator.setClient(client);
-                operator.setNamespace(namespace);
-                operator.setOpenshift(isOpenShift);
-
-                CompletableFuture<Watch> future = operator.start().thenApply(res -> {
-                    log.info("{} started in namespace {}", operator.getName(), namespace);
-                    return res;
-                }).exceptionally(ex -> {
-                    log.error("{} in namespace {} failed to start", operator.getName(), namespace, ((Throwable)ex).getCause());
-                    System.exit(1);
-                    return null;
-                });
-
-                ScheduledExecutorService s = Executors.newScheduledThreadPool(1);
-                int realDelay = (delay * operatorNumber) + operatorIndex + 2;
-                ScheduledFuture<?> scheduledFuture =
-                        s.scheduleAtFixedRate(() -> {
-                            try {
-                                operator.fullReconciliation();
-                                operator.setFullReconciliationRun(true);
-                            } catch (Throwable t) {
-                                log.warn("error during full reconciliation: {}", t.getMessage());
-                                t.printStackTrace();
-                            }
-                        }, realDelay, reconInterval, SECONDS);
-                log.info("full reconciliation for {} scheduled (periodically each {} seconds)", operator.getName(), reconInterval);
-                log.info("the first full reconciliation for {} is happening in {} seconds", operator.getName(), realDelay);
-
-                futures.add(future);
-//                futures.add(scheduledFuture);
-            } catch (InstantiationException | IllegalAccessException e) {
-                e.printStackTrace();
+            AbstractOperator operator = operatorList.get(operatorIndex);
+            if (!AbstractOperator.class.isAssignableFrom(operator.getClass())) {
+                log.error("Class {} annotated with @Operator doesn't extend the AbstractOperator", operator.getClass());
+                return; // do not fail
             }
+
+            if (!operator.isEnabled()) {
+                log.info("Skipping initialization of {} operator", operator.getClass());
+                return;
+            }
+
+            operator.setClient(client);
+            operator.setNamespace(namespace);
+            operator.setOpenshift(isOpenShift);
+
+            CompletableFuture<Watch> future = operator.start().thenApply(res -> {
+                log.info("{} started in namespace {}", operator.getName(), namespace);
+                return res;
+            }).exceptionally(ex -> {
+                log.error("{} in namespace {} failed to start", operator.getName(), namespace, ((Throwable) ex).getCause());
+                System.exit(1);
+                return null;
+            });
+
+            ScheduledExecutorService s = Executors.newScheduledThreadPool(1);
+            int realDelay = (delay * operatorNumber) + operatorIndex + 2;
+            ScheduledFuture<?> scheduledFuture =
+                    s.scheduleAtFixedRate(() -> {
+                        try {
+                            operator.fullReconciliation();
+                            operator.setFullReconciliationRun(true);
+                        } catch (Throwable t) {
+                            log.warn("error during full reconciliation: {}", t.getMessage());
+                            t.printStackTrace();
+                        }
+                    }, realDelay, reconInterval, SECONDS);
+            log.info("full reconciliation for {} scheduled (periodically each {} seconds)", operator.getName(), reconInterval);
+            log.info("the first full reconciliation for {} is happening in {} seconds", operator.getName(), realDelay);
+
+            futures.add(future);
         });
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[]{}));
     }
 
-    private static boolean isOnOpenShift() {
+    private boolean isOnOpenShift() {
         URL kubernetesApi = client.getMasterUrl();
 
         HttpUrl.Builder urlBuilder = new HttpUrl.Builder();
@@ -219,12 +220,12 @@ public class Entrypoint {
         return success;
     }
 
-    private static void printInfo() {
+    private void printInfo() {
         String gitSha = "unknown";
         String version = "unknown";
         try {
-            version = Entrypoint.class.getPackage().getImplementationVersion();
-            gitSha = Manifests.read("Implementation-Build");
+            version = Optional.ofNullable(SDKEntrypoint.class.getPackage().getImplementationVersion()).orElse(version);
+            gitSha = Optional.ofNullable(Manifests.read("Implementation-Build")).orElse(gitSha);
         } catch (Exception e) {
             // ignore, not critical
         }
@@ -241,7 +242,7 @@ public class Entrypoint {
         log.info("==================\n");
     }
 
-    private static void registerMetrics(String gitSha, String version) {
+    private void registerMetrics(String gitSha, String version) {
         List<String> labels = new ArrayList<>();
         List<String> values = new ArrayList<>();
 
@@ -279,5 +280,35 @@ public class Entrypoint {
         InstrumentedAppender metricsLogAppender = new InstrumentedAppender();
         metricsLogAppender.setName("metrics");
         rootLogger.addAppender(metricsLogAppender);
+    }
+
+    public static ExecutorService getExecutors() {
+        if (null == executors) {
+            executors = Executors.newFixedThreadPool(10);
+        }
+        return executors;
+    }
+
+    private static OkHttpClient getOkHttpClient() {
+        try {
+            // Create a trust manager that does not validate certificate chains
+            final X509TrustManager trustAllCerts = new X509TrustManager() {
+                public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {}
+                public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {}
+                public X509Certificate[] getAcceptedIssuers() {
+                    return new X509Certificate[]{};
+                }
+            };
+            final SSLContext sslContext = SSLContext.getInstance("SSL");
+            sslContext.init(null, new X509TrustManager[]{trustAllCerts}, new SecureRandom());
+            final SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
+            OkHttpClient.Builder builder = new OkHttpClient.Builder();
+            builder.sslSocketFactory(sslSocketFactory, trustAllCerts);
+            builder.hostnameVerifier((hostname, session) -> true);
+            OkHttpClient okHttpClient = builder.build();
+            return okHttpClient;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

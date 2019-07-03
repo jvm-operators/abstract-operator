@@ -11,7 +11,7 @@ import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.Watchable;
-import io.radanalytics.operator.Entrypoint;
+import io.radanalytics.operator.SDKEntrypoint;
 import io.radanalytics.operator.common.crd.InfoClass;
 import io.radanalytics.operator.common.crd.InfoClassDoneable;
 import io.radanalytics.operator.common.crd.InfoList;
@@ -19,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -107,7 +106,7 @@ public abstract class AbstractWatcher<T extends EntityInfo> {
                 }
             });
             return watch;
-        }, Entrypoint.EXECUTORS);
+        }, SDKEntrypoint.getExecutors());
         cf.thenApply(w -> {
             log.info("ConfigMap watcher running for labels {}", selector);
             return w;
@@ -152,7 +151,7 @@ public abstract class AbstractWatcher<T extends EntityInfo> {
             });
             AbstractWatcher.this.watch = watch;
             return watch;
-        }, Entrypoint.EXECUTORS);
+        }, SDKEntrypoint.getExecutors());
         cf.thenApply(w -> {
             log.info("CustomResource watcher running for kinds {}", entityName);
             return w;
