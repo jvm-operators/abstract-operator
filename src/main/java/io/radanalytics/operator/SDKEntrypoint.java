@@ -80,7 +80,7 @@ public class SDKEntrypoint {
         if (config.isMetrics()) {
             CompletableFuture<Optional<HTTPServer>> maybeMetricServer = future.thenCompose(s -> runMetrics(isOpenshift));
         }
-        future.join();
+//        future.join();
     }
 
     private CompletableFuture<Void> run(boolean isOpenShift) {
@@ -180,7 +180,6 @@ public class SDKEntrypoint {
             log.info("the first full reconciliation for {} is happening in {} seconds", operator.getName(), realDelay);
 
             futures.add(future);
-//                futures.add(scheduledFuture);
         });
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[]{}));
     }

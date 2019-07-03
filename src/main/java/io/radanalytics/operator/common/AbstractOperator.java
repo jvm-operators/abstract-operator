@@ -4,9 +4,6 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapList;
 import io.fabric8.kubernetes.api.model.DoneableConfigMap;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
-import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionBuilder;
-import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionFluent;
-import io.fabric8.kubernetes.api.model.apiextensions.JSONSchemaProps;
 import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListMultiDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -17,8 +14,8 @@ import io.radanalytics.operator.common.crd.InfoClassDoneable;
 import io.radanalytics.operator.common.crd.InfoList;
 import io.radanalytics.operator.resource.LabelsHelper;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,7 +39,11 @@ import static io.radanalytics.operator.common.OperatorConfig.ALL_NAMESPACES;
  */
 public abstract class AbstractOperator<T extends EntityInfo> {
 
-    protected static final Logger log = LoggerFactory.getLogger(AbstractOperator.class.getName());
+    @Inject
+    protected Logger log;
+
+    @Inject
+    private CrdDeployer crdDeployer;
 
     // client, isOpenshift and namespace are being set in the SDKEntrypoint from the context
     protected KubernetesClient client;
@@ -246,7 +247,7 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         log.info("Starting {} for namespace {}", operatorName, namespace);
 
         if (isCrd) {
-            this.crd = CrdDeployer.initCrds(client,
+            this.crd = crdDeployer.initCrds(client,
                                             prefix,
                                             entityName,
                                             shortNames,
