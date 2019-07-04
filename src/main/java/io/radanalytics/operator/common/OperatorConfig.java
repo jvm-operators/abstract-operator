@@ -26,7 +26,7 @@ public class OperatorConfig {
     public static final String FULL_RECONCILIATION_INTERVAL_S = "FULL_RECONCILIATION_INTERVAL_S";
     public static final String OPERATOR_OPERATION_TIMEOUT_MS = "OPERATOR_OPERATION_TIMEOUT_MS";
 
-    public static final boolean DEFAULT_METRICS = false;
+    public static final boolean DEFAULT_METRICS = true;
     public static final boolean DEFAULT_METRICS_JVM = false;
     public static final int DEFAULT_METRICS_PORT = 8080;
     public static final long DEFAULT_FULL_RECONCILIATION_INTERVAL_S = 180;
@@ -83,7 +83,7 @@ public class OperatorConfig {
         boolean metricsAux = DEFAULT_METRICS;
         String metricsEnvVar = map.get(METRICS);
         if (metricsEnvVar != null) {
-            metricsAux = "true".equals(metricsEnvVar.trim().toLowerCase());
+            metricsAux = !"false".equals(metricsEnvVar.trim().toLowerCase());
         }
 
         boolean metricsJvmAux = DEFAULT_METRICS_JVM;
