@@ -127,7 +127,7 @@ public abstract class AbstractWatcher<T extends EntityInfo> {
             Watch watch = watchable.watch(new Watcher<InfoClass>() {
                 @Override
                 public void eventReceived(Action action, InfoClass info) {
-                    log.info("Custom resource in namespace {} was {}\nCR:\n", namespace, action, info);
+                    log.info("Custom resource in namespace {} was {}\nCR:\n{}", namespace, action, info);
                     T entity = convertCr.apply(info);
                     if (entity == null) {
                         log.error("something went wrong, unable to parse {} definition", entityName);
