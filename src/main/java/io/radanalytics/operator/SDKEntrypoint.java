@@ -1,6 +1,9 @@
 package io.radanalytics.operator;
 
 import com.jcabi.manifests.Manifests;
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -22,6 +25,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 import org.slf4j.Logger;
 
+import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.enterprise.inject.Any;
@@ -46,7 +50,7 @@ import static io.radanalytics.operator.common.OperatorConfig.SAME_NAMESPACE;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
- * Entry point class that contains the main method and should bootstrap all the registered operators
+ * Entry point class that watches on StartupEvent and should bootstrap all the registered operators
  * that are present on the class path. It scans the class path for those classes that have the
  * {@link io.radanalytics.operator.common.Operator} annotations on them or extends the {@link AbstractOperator}.
  */
@@ -54,8 +58,10 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class SDKEntrypoint {
     private static ExecutorService executors;
 
-    private OperatorConfig config;
-    private KubernetesClient client;
+    protected OperatorConfig config;
+    protected KubernetesClient client;
+    protected boolean isOpenShift;
+
     @Inject
     private Logger log;
 
@@ -63,27 +69,30 @@ public class SDKEntrypoint {
     @Inject @Any
     private Instance<AbstractOperator<? extends EntityInfo>> operators;
 
+    @PostConstruct
+    void init(){
+        config = OperatorConfig.fromMap(System.getenv());
+        client = new DefaultKubernetesClient();
+        checkIfOnOpenshift();
+    }
+
     void onStop(@Observes ShutdownEvent event) {
         log.info("Stopped");
     }
 
     public void onStart(@Observes StartupEvent event) {
         log.info("Starting..");
-        config = OperatorConfig.fromMap(System.getenv());
-        client = new DefaultKubernetesClient();
-        boolean isOpenshift = isOnOpenShift();
-        CompletableFuture<Void> future = run(isOpenshift).exceptionally(ex -> {
+        CompletableFuture<Void> future = run().exceptionally(ex -> {
             log.error("Unable to start operator for one or more namespaces", ex);
             System.exit(1);
             return null;
         });
         if (config.isMetrics()) {
-            CompletableFuture<Optional<HTTPServer>> maybeMetricServer = future.thenCompose(s -> runMetrics(isOpenshift));
+            CompletableFuture<Optional<HTTPServer>> maybeMetricServer = future.thenCompose(s -> runMetrics());
         }
-//        future.join();
     }
 
-    private CompletableFuture<Void> run(boolean isOpenShift) {
+    private CompletableFuture<Void> run() {
         printInfo();
         if (isOpenShift) {
             log.info("{}OpenShift{} environment detected.", AnsiColors.ye(), AnsiColors.xx());
@@ -112,13 +121,12 @@ public class SDKEntrypoint {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[]{}));
     }
 
-    private CompletableFuture<Optional<HTTPServer>> runMetrics(boolean isOpenShift) {
+    private CompletableFuture<Optional<HTTPServer>> runMetrics() {
         HTTPServer httpServer = null;
         try {
             log.info("Starting a simple HTTP server for exposing internal metrics..");
             httpServer = new HTTPServer(config.getMetricsPort());
             log.info("{}metrics server{} listens on port {}", AnsiColors.ye(), AnsiColors.xx(), config.getMetricsPort());
-            // todo: create also the service and for openshift also expose the service (?)
         } catch (IOException e) {
             log.error("Can't start metrics server because of: {} ", e.getMessage());
             e.printStackTrace();
@@ -184,40 +192,39 @@ public class SDKEntrypoint {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[]{}));
     }
 
-    private boolean isOnOpenShift() {
-        URL kubernetesApi = client.getMasterUrl();
-
-        HttpUrl.Builder urlBuilder = new HttpUrl.Builder();
-        urlBuilder.host(kubernetesApi.getHost());
-
-        if (kubernetesApi.getPort() == -1) {
-            urlBuilder.port(kubernetesApi.getDefaultPort());
-        } else {
-            urlBuilder.port(kubernetesApi.getPort());
-        }
-        if (kubernetesApi.getProtocol().equals("https")) {
-            urlBuilder.scheme("https");
-        }
-        urlBuilder.addPathSegment("apis/route.openshift.io/v1");
-
-        OkHttpClient httpClient = HttpClientUtils.createHttpClient(new ConfigBuilder().build());
-        HttpUrl url = urlBuilder.build();
-        Response response;
+    private void checkIfOnOpenshift() {
         try {
-            response = httpClient.newCall(new Request.Builder().url(url).build()).execute();
-        } catch (IOException e) {
+            URL kubernetesApi = client.getMasterUrl();
+
+            HttpUrl.Builder urlBuilder = new HttpUrl.Builder();
+            urlBuilder.host(kubernetesApi.getHost());
+
+            if (kubernetesApi.getPort() == -1) {
+                urlBuilder.port(kubernetesApi.getDefaultPort());
+            } else {
+                urlBuilder.port(kubernetesApi.getPort());
+            }
+            if (kubernetesApi.getProtocol().equals("https")) {
+                urlBuilder.scheme("https");
+            }
+            urlBuilder.addPathSegment("apis/route.openshift.io/v1");
+
+            OkHttpClient httpClient = HttpClientUtils.createHttpClient(new ConfigBuilder().build());
+            HttpUrl url = urlBuilder.build();
+            Response response = httpClient.newCall(new Request.Builder().url(url).build()).execute();
+            boolean success = response.isSuccessful();
+            if (success) {
+                log.info("{} returned {}. We are on OpenShift.", url, response.code());
+            } else {
+                log.info("{} returned {}. We are not on OpenShift. Assuming, we are on Kubernetes.", url, response.code());
+            }
+            isOpenShift = success;
+        } catch (Exception e) {
             e.printStackTrace();
             log.error("Failed to distinguish between Kubernetes and OpenShift");
             log.warn("Let's assume we are on K8s");
-            return false;
+            isOpenShift = false;
         }
-        boolean success = response.isSuccessful();
-        if (success) {
-            log.info("{} returned {}. We are on OpenShift.", url, response.code());
-        } else {
-            log.info("{} returned {}. We are not on OpenShift. Assuming, we are on Kubernetes.", url, response.code());
-        }
-        return success;
     }
 
     private void printInfo() {
@@ -289,26 +296,15 @@ public class SDKEntrypoint {
         return executors;
     }
 
-    private static OkHttpClient getOkHttpClient() {
-        try {
-            // Create a trust manager that does not validate certificate chains
-            final X509TrustManager trustAllCerts = new X509TrustManager() {
-                public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {}
-                public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {}
-                public X509Certificate[] getAcceptedIssuers() {
-                    return new X509Certificate[]{};
-                }
-            };
-            final SSLContext sslContext = SSLContext.getInstance("SSL");
-            sslContext.init(null, new X509TrustManager[]{trustAllCerts}, new SecureRandom());
-            final SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
-            OkHttpClient.Builder builder = new OkHttpClient.Builder();
-            builder.sslSocketFactory(sslSocketFactory, trustAllCerts);
-            builder.hostnameVerifier((hostname, session) -> true);
-            OkHttpClient okHttpClient = builder.build();
-            return okHttpClient;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    public boolean isOpenShift() {
+        return isOpenShift;
+    }
+
+    public OperatorConfig getConfig() {
+        return config;
+    }
+
+    public KubernetesClient getClient() {
+        return client;
     }
 }

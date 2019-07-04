@@ -71,7 +71,6 @@ public class CrdDeployer {
                 if (schema != null) {
                     // https://github.com/fabric8io/kubernetes-client/issues/1486
                     crdToReturn.getSpec().getValidation().getOpenAPIV3Schema().setDependencies(null);
-                    log.error("schema: \n\n" + schema.toString());
                 }
 
                 client.customResourceDefinitions().createOrReplace(crdToReturn);
