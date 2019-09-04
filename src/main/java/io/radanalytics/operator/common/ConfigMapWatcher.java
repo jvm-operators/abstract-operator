@@ -29,6 +29,7 @@ public class ConfigMapWatcher<T extends EntityInfo> extends AbstractWatcher<T> {
     }
 
     public static class Builder<T> {
+        private boolean registered = false;
         private String namespace = ALL_NAMESPACES;
         private String entityName;
         private KubernetesClient client;
@@ -86,6 +87,10 @@ public class ConfigMapWatcher<T extends EntityInfo> extends AbstractWatcher<T> {
         }
 
         public ConfigMapWatcher build() {
+            if (!registered) {
+                io.fabric8.kubernetes.internal.KubernetesDeserializer.registerCustomKind("v1#ConfigMap", ConfigMap.class);
+                registered = true;
+            }
             return new ConfigMapWatcher(namespace, entityName, client, selector, onAdd, onDelete, onModify, predicate, convert);
         }
     }
