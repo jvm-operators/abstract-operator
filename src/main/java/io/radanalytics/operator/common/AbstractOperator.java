@@ -59,6 +59,9 @@ public abstract class AbstractOperator<T extends EntityInfo> {
     protected boolean isCrd;
     protected boolean enabled = true;
     protected String named;
+    protected String[] additionalPrinterColumnNames;
+    protected String[] additionalPrinterColumnPaths;
+    protected String[] additionalPrinterColumnTypes;
 
     protected volatile boolean fullReconciliationRun = false;
 
@@ -78,6 +81,9 @@ public abstract class AbstractOperator<T extends EntityInfo> {
             this.prefix = annotation.prefix();
             this.shortNames = annotation.shortNames();
             this.pluralName = annotation.pluralName();
+            this.additionalPrinterColumnNames = annotation.additionalPrinterColumnNames();
+            this.additionalPrinterColumnPaths = annotation.additionalPrinterColumnPaths();
+            this.additionalPrinterColumnTypes = annotation.additionalPrinterColumnTypes();
         } else {
             log.info("Annotation on the operator class not found, falling back to direct field access.");
             log.info("If the initialization fails, it's probably due to the fact that some compulsory fields are missing.");
@@ -252,6 +258,9 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                                             entityName,
                                             shortNames,
                                             pluralName,
+                                            additionalPrinterColumnNames,
+                                            additionalPrinterColumnPaths,
+                                            additionalPrinterColumnTypes,
                                             infoClass,
                                             isOpenshift);
         }
@@ -308,6 +317,9 @@ public abstract class AbstractOperator<T extends EntityInfo> {
         ok = ok && entityName != null && !entityName.isEmpty();
         ok = ok && prefix != null && !prefix.isEmpty() && prefix.endsWith("/");
         ok = ok && operatorName != null && operatorName.endsWith("operator");
+        ok = ok && additionalPrinterColumnNames == null ||
+                (additionalPrinterColumnPaths != null && (additionalPrinterColumnNames.length == additionalPrinterColumnPaths.length)
+                        && (additionalPrinterColumnTypes == null || additionalPrinterColumnNames.length == additionalPrinterColumnTypes.length ));
         return ok;
     }
 
