@@ -15,4 +15,7 @@ public @interface Operator {
     String pluralName() default "";
     boolean enabled() default true;
     boolean crd() default true;
+    String[] additionalPrinterColumnNames() default {};
+    String[] additionalPrinterColumnPaths() default {};
+    String[] additionalPrinterColumnTypes() default {};
 }

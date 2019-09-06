@@ -30,6 +30,9 @@ public class CrdDeployer {
                                                     String entityName,
                                                     String[] shortNames,
                                                     String pluralName,
+                                                    String[] additionalPrinterColumnNames,
+                                                    String[] additionalPrinterColumnPaths,
+                                                    String[] additionalPrinterColumnTypes,
                                                     Class<? extends EntityInfo> infoClass,
                                                     boolean isOpenshift) {
         final String newPrefix = prefix.substring(0, prefix.length() - 1);
@@ -65,6 +68,11 @@ public class CrdDeployer {
                                         entityName,
                                         shortNames,
                                         pluralName);
+            }
+            if (additionalPrinterColumnNames != null && additionalPrinterColumnNames.length > 0) {
+                for (int i = 0; i < additionalPrinterColumnNames.length; i++) {
+                    builder = builder.addNewAdditionalPrinterColumn().withName(additionalPrinterColumnNames[i]).withJSONPath(additionalPrinterColumnPaths[i]).endAdditionalPrinterColumn();
+                }
             }
             crdToReturn = builder.endSpec().build();
             try {
