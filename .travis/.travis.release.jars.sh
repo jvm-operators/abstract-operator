@@ -14,7 +14,7 @@ main() {
   elif [[ "${TRAVIS_TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "Releasing the '${TRAVIS_TAG}' maven artifacts."
     # uncomment out if you want to make the travis do the releases (it wasn't reliable)
-    # release
+    release
     javadoc
   else
     echo "Not doing the Maven release, because the tag '${TRAVIS_TAG}' is not of form x.y.z"
