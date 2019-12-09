@@ -69,6 +69,16 @@ public class SDKEntrypoint {
     @Inject @Any
     private Instance<AbstractOperator<? extends EntityInfo>> operators;
 
+    public SDKEntrypoint() {
+
+    }
+
+    /* this entrypoint can be called from an environment w/o CDI */
+    public SDKEntrypoint(Logger log) {
+        this.log = log;
+        init();
+    }
+
     @PostConstruct
     void init(){
         config = OperatorConfig.fromMap(System.getenv());
@@ -101,20 +111,22 @@ public class SDKEntrypoint {
         }
 
         List<CompletableFuture> futures = new ArrayList<>();
-        if (SAME_NAMESPACE.equals(config.getNamespaces().iterator().next())) { // current namespace
-            String namespace = client.getNamespace();
-            CompletableFuture future = runForNamespace(isOpenShift, namespace, config.getReconciliationIntervalS(), 0);
-            futures.add(future);
-        } else {
-            if (ALL_NAMESPACES.equals(config.getNamespaces().iterator().next())) {
-                CompletableFuture future = runForNamespace(isOpenShift, ALL_NAMESPACES, config.getReconciliationIntervalS(), 0);
+        if (operators != null) {
+            if (SAME_NAMESPACE.equals(config.getNamespaces().iterator().next())) { // current namespace
+                String namespace = client.getNamespace();
+                CompletableFuture future = runForNamespace(isOpenShift, namespace, config.getReconciliationIntervalS(), 0);
                 futures.add(future);
             } else {
-                Iterator<String> ns;
-                int i;
-                for (ns = config.getNamespaces().iterator(), i = 0; i < config.getNamespaces().size(); i++) {
-                    CompletableFuture future = runForNamespace(isOpenShift, ns.next(), config.getReconciliationIntervalS(), i);
+                if (ALL_NAMESPACES.equals(config.getNamespaces().iterator().next())) {
+                    CompletableFuture future = runForNamespace(isOpenShift, ALL_NAMESPACES, config.getReconciliationIntervalS(), 0);
                     futures.add(future);
+                } else {
+                    Iterator<String> ns;
+                    int i;
+                    for (ns = config.getNamespaces().iterator(), i = 0; i < config.getNamespaces().size(); i++) {
+                        CompletableFuture future = runForNamespace(isOpenShift, ns.next(), config.getReconciliationIntervalS(), i);
+                        futures.add(future);
+                    }
                 }
             }
         }
