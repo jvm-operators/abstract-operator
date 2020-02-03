@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinitionFluent;
+import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceSubresourceStatus;
 import io.fabric8.kubernetes.api.model.apiextensions.JSONSchemaProps;
 import io.fabric8.kubernetes.client.CustomResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -143,6 +144,8 @@ public class CrdDeployer {
                     .withShortNames(Arrays.asList(shortNamesLower)).endNames()
                 .withGroup(prefix)
                 .withVersion("v1")
-                .withScope("Namespaced");
+                .withScope("Namespaced")
+                // add an empty status block to all CRDs created
+                .withNewSubresources().withStatus(new CustomResourceSubresourceStatus()).endSubresources();
     }
 }

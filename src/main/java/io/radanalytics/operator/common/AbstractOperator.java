@@ -10,11 +10,13 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.radanalytics.operator.common.crd.CrdDeployer;
 import io.radanalytics.operator.common.crd.InfoClass;
+import io.radanalytics.operator.common.crd.InfoStatus;
 import io.radanalytics.operator.common.crd.InfoClassDoneable;
 import io.radanalytics.operator.common.crd.InfoList;
 import io.radanalytics.operator.resource.LabelsHelper;
 import org.slf4j.Logger;
 
+import java.util.Date;
 import javax.inject.Inject;
 import java.util.List;
 import java.util.Map;
@@ -394,6 +396,28 @@ public abstract class AbstractOperator<T extends EntityInfo> {
                     }).collect(Collectors.toSet());
         }
         return desiredSet;
+    }
+
+    /**
+     * Sets the 'state' field in the status block of the CR identified by namespace and name.
+     * The status block in the CR has another component 'lastTransitionTime' which is set
+     * automatically. Note, this only works for custom resource watchers, it has no effect for configmap watchers.
+     *
+     * @param status          String value that will be assigned to the 'state' field in the CR status block
+     * @param namespace       The namespace holding the CR to update
+     * @param name            The name of the CR to update
+     **/
+    protected void setCRStatus(String status, String namespace, String name) {
+        if (isCrd) {
+            MixedOperation<InfoClass, InfoList, InfoClassDoneable, Resource<InfoClass, InfoClassDoneable>> crclient =
+                    client.customResources(crd, InfoClass.class, InfoList.class, InfoClassDoneable.class);
+
+            InfoClass cr = crclient.inNamespace(namespace).withName(name).get();
+            if (cr != null) {
+                cr.setStatus(new InfoStatus(status, new Date()));
+                crclient.inNamespace(namespace).withName(name).updateStatus(cr);
+            }
+        }
     }
 
     public void setClient(KubernetesClient client) {
