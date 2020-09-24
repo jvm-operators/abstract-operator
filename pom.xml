@@ -5,11 +5,11 @@
   <parent>
     <groupId>io.radanalytics</groupId>
     <artifactId>operator-parent-pom</artifactId>
-    <version>0.3.25</version>
+    <version>0.3.27-SNAPSHOT</version>
   </parent>
   <groupId>io.radanalytics</groupId>
   <artifactId>abstract-operator</artifactId>
-  <version>0.6.16-SNAPSHOT</version>
+  <version>0.6.17-SNAPSHOT</version>
   <scm>
     <connection>scm:git:git@github.com:jvm-operators/abstract-operator.git</connection>
     <developerConnection>scm:git:git@github.com:jvm-operators/abstract-operator.git</developerConnection>
