@@ -17,3 +17,7 @@ script:
 #  script: make build-travis && ./mvnw -s ./.travis/settings.xml clean deploy
 after_success:
   - ./.travis/.travis.release.jars.sh
+
+cache:
+  directories:
+  - $HOME/.m2
